@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnos — Know what's wrong before you call anyone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+
+/* ─── TOKENS ────────────────────────────────────────────── */
+:root {
+  --bg:        #0C0C0E;
+  --surface:   #111114;
+  --surface-2: #18181C;
+  --border:    rgba(255,255,255,0.07);
+  --border-2:  rgba(255,255,255,0.12);
+
+  --text:      #EDEDF0;
+  --muted:     #8A8A96;
+  --dim:       #4A4A56;
+
+  --accent:    #00E5A0;
+  --accent-dim:#00E5A014;
+  --accent-bdr:#00E5A030;
+
+  --red:       #FF5757;
+  --yellow:    #F5C842;
+
+  --ff-display: 'Syne', sans-serif;
+  --ff-body:    'Inter', sans-serif;
+  --ff-mono:    'JetBrains Mono', monospace;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── RESET ─────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ff-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: inherit; border: none; background: none; }
+ul, ol { list-style: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── LAYOUT ─────────────────────────────────────────────── */
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+.section {
+  padding: 96px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* ─── TYPE ───────────────────────────────────────────────── */
+.display {
+  font-family: var(--ff-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.0;
+}
+
+.label {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* ─── REVEAL ─────────────────────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.6s var(--ease), transform 0.6s var(--ease);
+}
+.reveal.in { opacity: 1; transform: none; }
+.reveal-d1 { transition-delay: 0.08s; }
+.reveal-d2 { transition-delay: 0.15s; }
+.reveal-d3 { transition-delay: 0.22s; }
+.reveal-d4 { transition-delay: 0.29s; }
+.reveal-d5 { transition-delay: 0.36s; }
+
+/* ─── BUTTONS ────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+.btn svg { flex-shrink: 0; transition: transform 0.18s ease; }
+.btn:hover svg { transform: translateX(2px); }
+
+.btn-primary {
+  background: var(--accent);
+  color: #060E09;
+}
+.btn-primary:hover {
+  background: #19FFAD;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(0,229,160,0.28);
+}
+.btn-primary:active { transform: none; box-shadow: none; }
+
+.btn-secondary {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border-2);
+}
+.btn-secondary:hover { color: var(--text); border-color: rgba(255,255,255,0.22); }
+
+/* ─── NAV ─────────────────────────────────────────────────── */
+#nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  padding: 0 40px;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+#nav.solid {
+  background: rgba(12, 12, 14, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-inner {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--ff-display);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.nav-logo-mark {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+}
+.nav-logo-mark svg { width: 16px; height: 16px; }
+
+.nav-links {
+  display: flex;
+  gap: 36px;
+}
+.nav-links a {
+  font-size: 14px;
+  color: var(--muted);
+  transition: color 0.15s ease;
+}
+.nav-links a:hover { color: var(--text); }
+
+.nav-actions { display: flex; gap: 10px; }
+
+/* ─── HERO ─────────────────────────────────────────────────── */
+.hero {
+  padding: 160px 0 96px;
+  position: relative;
+}
+
+/* Subtle radial — one, not five */
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -120px; left: 50%;
+  transform: translateX(-50%);
+  width: 900px; height: 600px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(0,229,160,0.07) 0%, transparent 65%);
+  pointer-events: none;
+}
+
+.hero-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.hero-left { }
+
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+.hero-eyebrow-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+h1 {
+  font-family: var(--ff-display);
+  font-size: clamp(42px, 5.2vw, 70px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.0;
+  color: var(--text);
+  margin-bottom: 24px;
+}
+h1 .accent { color: var(--accent); }
+
+.hero-sub {
+  font-size: 17px;
+  color: var(--muted);
+  line-height: 1.7;
+  max-width: 440px;
+  margin-bottom: 36px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ─── TERMINAL ────────────────────────────────────────────── */
+.terminal {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 32px 64px rgba(0,0,0,0.5);
+}
+
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 18px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.t-dots { display: flex; gap: 6px; }
+.t-dots span {
+  width: 11px; height: 11px;
+  border-radius: 50%;
+}
+.t-dots span:nth-child(1) { background: #FF5F57; }
+.t-dots span:nth-child(2) { background: #FFBD2E; }
+.t-dots span:nth-child(3) { background: #27C93F; }
+
+.t-title {
+  font-family: var(--ff-mono);
+  font-size: 11.5px;
+  color: var(--dim);
+}
+
+.t-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--ff-mono);
+  font-size: 11px;
+}
+.t-status-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+#t-status-text { color: var(--accent); }
+
+.terminal-body { padding: 20px; }
+
+/* Appliance picker */
+.t-row-label {
+  font-family: var(--ff-mono);
+  font-size: 10.5px;
+  color: var(--dim);
+  letter-spacing: 0.06em;
+  margin-bottom: 10px;
+}
+
+.t-appliances {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.t-app-btn {
+  padding: 6px 13px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  transition: all 0.15s ease;
+}
+.t-app-btn:hover {
+  color: var(--text);
+  border-color: var(--border-2);
+}
+.t-app-btn.active {
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-color: var(--accent-bdr);
+}
+
+/* Waveform */
+.t-wave-wrap {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px 8px;
+  margin-bottom: 16px;
+}
+.t-wave-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.t-wave-meta span {
+  font-family: var(--ff-mono);
+  font-size: 10.5px;
+  color: var(--dim);
+}
+.wave-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+
+/* Result rows */
+.t-result {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all 0.4s var(--ease);
+}
+.t-result.show { opacity: 1; transform: none; }
+
+.t-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 7px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.t-result-row.primary {
+  background: var(--accent-dim);
+  border-color: var(--accent-bdr);
+}
+
+.t-result-key {
+  font-family: var(--ff-mono);
+  font-size: 10.5px;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.t-result-val {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.t-result-row.primary .t-result-val { color: var(--accent); }
+
+.conf-track {
+  width: 80px;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.conf-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  width: 0;
+  transition: width 1s var(--ease) 0.2s;
+}
+
+/* ─── STATS ───────────────────────────────────────────────── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.stat {
+  padding: 48px 0;
+  text-align: center;
+  border-right: 1px solid var(--border);
+}
+.stat:last-child { border-right: none; }
+
+.stat-n {
+  font-family: var(--ff-display);
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.stat-l {
+  font-size: 13px;
+  color: var(--dim);
+  line-height: 1.4;
+}
+
+/* ─── HOW IT WORKS ────────────────────────────────────────── */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 56px;
+}
+
+.step {
+  background: var(--bg);
+  padding: 36px 32px;
+  transition: background 0.2s ease;
+}
+.step:hover { background: var(--surface); }
+
+.step-n {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  color: var(--dim);
+  margin-bottom: 24px;
+}
+
+.step-icon {
+  width: 36px; height: 36px;
+  color: var(--accent);
+  margin-bottom: 18px;
+}
+
+.step h3 {
+  font-family: var(--ff-display);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 10px;
+}
+
+.step p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+/* ─── APPLIANCES ──────────────────────────────────────────── */
+.appliances-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+  margin-top: 56px;
+}
+
+.app-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px 20px 24px;
+  text-align: center;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.app-card:hover {
+  background: var(--surface-2);
+  border-color: var(--border-2);
+}
+
+.app-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  display: block;
+}
+.app-name {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.app-faults {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  color: var(--dim);
+}
+
+/* ─── MODULES ─────────────────────────────────────────────── */
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 56px;
+}
+
+.mod-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px;
+  transition: border-color 0.2s ease;
+}
+.mod-card:hover { border-color: var(--border-2); }
+
+.mod-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 3px 9px;
+  border-radius: 100px;
+  margin-bottom: 16px;
+}
+.tag-live {
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-bdr);
+  color: var(--accent);
+}
+.tag-soon {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  color: var(--dim);
+}
+.mod-tag-dot {
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.mod-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.mod-card p {
+  font-size: 13.5px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* ─── COMPARISON ──────────────────────────────────────────── */
+.comparison-table {
+  margin-top: 56px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.cmp-head {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.cmp-h {
+  padding: 18px 28px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.cmp-h.diagnos { color: var(--accent); }
+.cmp-h:not(:first-child) { border-left: 1px solid var(--border); }
+
+.cmp-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  border-bottom: 1px solid var(--border);
+}
+.cmp-row:last-child { border-bottom: none; }
+.cmp-row:hover .cmp-cell { background: var(--surface); }
+
+.cmp-cell {
+  padding: 16px 28px;
+  font-size: 14px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  transition: background 0.15s ease;
+}
+.cmp-cell.feature { color: var(--text); font-weight: 500; }
+.cmp-cell:not(:first-child) { border-left: 1px solid var(--border); }
+.cmp-cell.diagnos { background: rgba(0,229,160,0.03); }
+.cmp-row:hover .cmp-cell.diagnos { background: rgba(0,229,160,0.055); }
+
+.check-y, .check-n {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.check-y { background: rgba(0,229,160,0.12); color: var(--accent); }
+.check-n { background: rgba(255,87,87,0.1); color: var(--red); }
+
+/* ─── TESTIMONIALS ────────────────────────────────────────── */
+.testimonials-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 56px;
+}
+
+.testi {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px;
+}
+
+.testi-stars {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  color: var(--yellow);
+}
+.testi-stars svg { width: 13px; height: 13px; fill: currentColor; }
+
+.testi-body {
+  font-size: 14.5px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 22px;
+}
+.testi-body strong { color: var(--text); font-weight: 500; }
+
+.testi-author {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.testi-avatar {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #060E09;
+  flex-shrink: 0;
+}
+.testi-name { font-size: 13.5px; font-weight: 600; }
+.testi-loc  { font-size: 12px; color: var(--dim); }
+
+/* ─── PRICING ──────────────────────────────────────────────── */
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 56px;
+}
+
+.plan {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+}
+.plan.featured {
+  background: var(--surface);
+  border-color: var(--accent-bdr);
+  position: relative;
+  box-shadow: 0 0 0 1px var(--accent-bdr), 0 24px 48px rgba(0,0,0,0.3);
+}
+.plan.featured::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 12px 12px 0 0;
+}
+
+.plan-badge {
+  display: inline-block;
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-bdr);
+  padding: 3px 9px;
+  border-radius: 100px;
+  margin-bottom: 18px;
+  width: fit-content;
+}
+
+.plan-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.plan-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+  margin-bottom: 24px;
+}
+
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.plan-curr { font-size: 18px; font-weight: 500; color: var(--muted); }
+.plan-num  { font-family: var(--ff-display); font-size: 48px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+.plan.featured .plan-num { color: var(--accent); }
+.plan-per  { font-size: 13px; color: var(--dim); }
+
+.plan-divider { height: 1px; background: var(--border); margin: 24px 0; }
+
+.plan-features { display: flex; flex-direction: column; gap: 11px; flex: 1; }
+.plan-feat {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.plan-feat svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; }
+.plan-feat.on  svg { color: var(--accent); }
+.plan-feat.off { color: var(--dim); }
+.plan-feat.off svg { color: var(--dim); }
+
+.plan-cta { margin-top: 24px; width: 100%; justify-content: center; }
+
+/* ─── FAQ ─────────────────────────────────────────────────── */
+.faq-list {
+  margin-top: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.faq-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.2s ease;
+}
+.faq-item.open { border-color: var(--border-2); }
+
+.faq-q {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 20px 24px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
+  gap: 16px;
+  background: var(--surface);
+  transition: background 0.15s ease;
+}
+.faq-q:hover { background: var(--surface-2); }
+.faq-item.open .faq-q { background: var(--surface-2); }
+
+.faq-icon {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--border-2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.3s var(--ease), border-color 0.2s ease, color 0.2s ease;
+}
+.faq-item.open .faq-icon {
+  transform: rotate(45deg);
+  border-color: var(--accent-bdr);
+  color: var(--accent);
+}
+
+.faq-a {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.38s var(--ease);
+  background: var(--surface-2);
+}
+.faq-a-inner {
+  padding: 0 24px 20px;
+  font-size: 14.5px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+/* ─── CTA SECTION ─────────────────────────────────────────── */
+.cta-wrap {
+  padding: 100px 0 120px;
+  text-align: center;
+  border-top: 1px solid var(--border);
+}
+
+.cta-wrap h2 {
+  font-family: var(--ff-display);
+  font-size: clamp(36px, 5vw, 60px);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  margin-bottom: 18px;
+}
+
+.cta-wrap h2 .accent { color: var(--accent); }
+
+.cta-wrap p {
+  font-size: 17px;
+  color: var(--muted);
+  margin-bottom: 36px;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ─── FOOTER ──────────────────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 40px 0;
+}
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.footer-links {
+  display: flex;
+  gap: 28px;
+}
+.footer-links a { font-size: 13.5px; color: var(--dim); transition: color 0.15s ease; }
+.footer-links a:hover { color: var(--muted); }
+.footer-copy { font-size: 13px; color: var(--dim); }
+
+/* ─── RESPONSIVE ──────────────────────────────────────────── */
+@media (max-width: 900px) {
+  #nav { padding: 0 20px; }
+  .nav-links { display: none; }
+  .wrap { padding: 0 20px; }
+  .section { padding: 72px 0; }
+
+  .hero-inner { grid-template-columns: 1fr; gap: 48px; }
+  .hero { padding: 120px 0 72px; }
+  .hero::before { width: 100%; }
+
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .stat:nth-child(2) { border-right: none; }
+  .stat { border-bottom: 1px solid var(--border); }
+  .stat:nth-child(3), .stat:nth-child(4) { border-bottom: none; }
+
+  .steps { grid-template-columns: 1fr; }
+  .appliances-grid { grid-template-columns: repeat(3, 1fr); }
+  .modules-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .cmp-head, .cmp-row { grid-template-columns: 1.5fr 1fr 1fr; }
+
+  .testimonials-grid { grid-template-columns: 1fr; }
+  .pricing-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 580px) {
+  h1 { font-size: 38px; }
+  .appliances-grid { grid-template-columns: repeat(2, 1fr); }
+  .modules-grid { grid-template-columns: 1fr; }
+  .comparison-table { overflow-x: auto; }
+  .cmp-head, .cmp-row { min-width: 480px; }
+  footer .footer-inner { flex-direction: column; text-align: center; }
+  footer .footer-links { justify-content: center; }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav" role="navigation" aria-label="Main navigation">
+  <div class="nav-inner">
+    <div class="nav-logo">
+      <div class="nav-logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 22 22" fill="none">
+          <path d="M2 11L6 11L8 5L11 17L14 8L16 11L20 11" stroke="#060E09" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      Diagnos
+    </div>
+    <ul class="nav-links">
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#platform">Platform</a></li>
+      <li><a href="#pricing">Pricing</a></li>
+      <li><a href="#faq">FAQ</a></li>
+    </ul>
+    <div class="nav-actions" id="navActions">
+      <a href="signin.html" class="btn btn-secondary" id="navSignInBtn">Sign in</a>
+      <div id="navUserMenu" style="display:none;align-items:center;gap:10px;">
+        <a href="dashboard.html" class="btn btn-secondary">Dashboard</a>
+      </div>
+      <a href="diagnosis.html" class="btn btn-primary js-run-diagnosis" id="navRunDiagnosisBtn">
+        Run a diagnosis
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 6.5H11M11 6.5L7.5 3M11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" aria-labelledby="hero-h1">
+  <div class="wrap">
+    <div class="hero-inner">
+
+      <div class="hero-left">
+        <div class="hero-eyebrow">
+          <span class="hero-eyebrow-dot" aria-hidden="true"></span>
+          <span class="label">Refrigerators · ACs · Washers · Purifiers · Cameras</span>
+        </div>
+        <h1 id="hero-h1">
+          Know what's wrong<br>
+          <span class="accent">before</span> you call anyone.
+        </h1>
+        <p class="hero-sub">
+          Point your camera, record the sound, describe the problem. Diagnos reads the symptoms your appliance is already showing you — so you walk into the repair conversation informed, not guessing.
+        </p>
+        <div class="hero-actions">
+          <a href="diagnosis.html" class="btn btn-primary js-run-diagnosis">
+            Run a free diagnosis
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 6.5H11M11 6.5L7.5 3M11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </a>
+          <a href="#how" class="btn btn-secondary">See how it works</a>
+        </div>
+      </div>
+
+      <!-- Terminal -->
+      <div class="terminal" role="region" aria-label="Diagnosis demo">
+        <div class="terminal-bar">
+          <div class="t-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+          <span class="t-title">diagnos — live scan</span>
+          <div class="t-status">
+            <span class="t-status-dot" aria-hidden="true"></span>
+            <span id="t-status-text">ready</span>
+          </div>
+        </div>
+        <div class="terminal-body">
+          <div class="t-row-label">SELECT APPLIANCE</div>
+          <div class="t-appliances" role="group" aria-label="Appliance selector">
+            <button type="button" class="t-app-btn active" data-app="fridge" aria-pressed="true">Refrigerator</button>
+            <button type="button" class="t-app-btn" data-app="ac" aria-pressed="false">Air Conditioner</button>
+            <button type="button" class="t-app-btn" data-app="washer" aria-pressed="false">Washer</button>
+            <button type="button" class="t-app-btn" data-app="purifier" aria-pressed="false">Purifier</button>
+            <button type="button" class="t-app-btn" data-app="camera" aria-pressed="false">Camera</button>
+          </div>
+
+          <div class="t-wave-wrap" aria-hidden="true">
+            <div class="t-wave-meta">
+              <span id="t-wave-file">audio-scan.wav — refrigerator</span>
+              <span id="t-wave-dur">14.2s · 44.1kHz</span>
+            </div>
+            <svg width="100%" height="52" viewBox="0 0 540 52" preserveAspectRatio="none">
+              <path class="wave-path" id="wave-path" d="M0 26 L540 26"/>
+            </svg>
+          </div>
+
+          <div class="t-result" id="t-result" aria-live="polite">
+            <div class="t-result-row primary">
+              <span class="t-result-key">Likely fault</span>
+              <span class="t-result-val" id="t-fault">—</span>
+            </div>
+            <div class="t-result-row">
+              <span class="t-result-key">Confidence</span>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div class="conf-track"><div class="conf-fill" id="t-conf-fill"></div></div>
+                <span class="t-result-val" id="t-conf-text">—</span>
+              </div>
+            </div>
+            <div class="t-result-row">
+              <span class="t-result-key">Est. repair cost</span>
+              <span class="t-result-val" id="t-cost">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-row" role="region" aria-label="Key figures">
+  <div class="wrap" style="display:contents;">
+    <div class="stat reveal">
+      <div class="stat-n">3</div>
+      <div class="stat-l">Input types<br>image, audio, text</div>
+    </div>
+    <div class="stat reveal reveal-d1">
+      <div class="stat-n">5</div>
+      <div class="stat-l">Appliance categories<br>supported</div>
+    </div>
+    <div class="stat reveal reveal-d2">
+      <div class="stat-n">&lt;60s</div>
+      <div class="stat-l">To a first<br>diagnosis</div>
+    </div>
+    <div class="stat reveal reveal-d3">
+      <div class="stat-n">₹0</div>
+      <div class="stat-l">Cost to diagnose<br>your first fault</div>
+    </div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section class="section" id="how" aria-labelledby="how-h2">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="label">How it works</span>
+      <h2 class="display" style="font-size:clamp(30px,4vw,46px);margin-top:12px;margin-bottom:16px;">Three inputs. One verdict.</h2>
+      <p style="font-size:16px;color:var(--muted);max-width:460px;" id="how-h2">Most people already have the evidence — a weird noise, a leak, a smell. Diagnos knows how to read it.</p>
+    </div>
+    <div class="steps" style="margin-top:48px;">
+      <div class="step reveal reveal-d1">
+        <div class="step-n">01 — Capture</div>
+        <svg class="step-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M8 7L9.5 4H14.5L16 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="13" r="3.5" stroke="currentColor" stroke-width="1.5"/></svg>
+        <h3>Photo, sound, or words</h3>
+        <p>Snap the rust or the leak, record the rattle, or type what's happening. The phone already in your hand is enough.</p>
+      </div>
+      <div class="step reveal reveal-d2">
+        <div class="step-n">02 — Read</div>
+        <svg class="step-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12H6L9 4L15 20L18 12H21" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3>The system reads the signal</h3>
+        <p>Image models spot rust and damage. Audio models detect compressor strain, fan imbalance, bearing wear. Your words narrow it further.</p>
+      </div>
+      <div class="step reveal reveal-d3">
+        <div class="step-n">03 — Decide</div>
+        <svg class="step-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 12L11 14L15.5 9.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5"/></svg>
+        <h3>A straight answer</h3>
+        <p>A ranked list of likely causes with confidence scores. A fair cost range for your city. And a technician if you need one — not before.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- APPLIANCES -->
+<section class="section" style="padding-top:0;border-top:none;" aria-labelledby="app-h2">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="label">Supported appliances</span>
+      <h2 class="display" style="font-size:clamp(28px,3.5vw,42px);margin-top:12px;" id="app-h2">Built for the machines<br>you rely on daily.</h2>
+    </div>
+    <div class="appliances-grid">
+      <div class="app-card reveal reveal-d1">
+        <span class="app-icon" role="img" aria-label="Refrigerator">🧊</span>
+        <div class="app-name">Refrigerator</div>
+        <div class="app-faults">12 fault signatures</div>
+      </div>
+      <div class="app-card reveal reveal-d2">
+        <span class="app-icon" role="img" aria-label="Air Conditioner">❄️</span>
+        <div class="app-name">Air Conditioner</div>
+        <div class="app-faults">9 fault signatures</div>
+      </div>
+      <div class="app-card reveal reveal-d3">
+        <span class="app-icon" role="img" aria-label="Washing Machine">🫧</span>
+        <div class="app-name">Washing Machine</div>
+        <div class="app-faults">11 fault signatures</div>
+      </div>
+      <div class="app-card reveal reveal-d4">
+        <span class="app-icon" role="img" aria-label="Air Purifier">💨</span>
+        <div class="app-name">Air Purifier</div>
+        <div class="app-faults">7 fault signatures</div>
+      </div>
+      <div class="app-card reveal reveal-d5">
+        <span class="app-icon" role="img" aria-label="Security Camera">📷</span>
+        <div class="app-name">Security Camera</div>
+        <div class="app-faults">8 fault signatures</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PLATFORM -->
+<section class="section" id="platform" aria-labelledby="plat-h2">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="label">The platform</span>
+      <h2 class="display" style="font-size:clamp(28px,3.5vw,42px);margin-top:12px;margin-bottom:16px;" id="plat-h2">Everything between<br>"it's broken" and "it's fixed."</h2>
+      <p style="font-size:16px;color:var(--muted);max-width:420px;">Six systems working together. Not six separate apps you stitch yourself.</p>
+    </div>
+    <div class="modules-grid">
+      <div class="mod-card reveal reveal-d1">
+        <span class="mod-tag tag-live"><span class="mod-tag-dot"></span>Live</span>
+        <h3>Symptom checker</h3>
+        <p>A guided conversation that narrows down the fault from what you already know — no photo or audio required.</p>
+      </div>
+      <div class="mod-card reveal reveal-d2">
+        <span class="mod-tag tag-live"><span class="mod-tag-dot"></span>Live</span>
+        <h3>Diagnostic engine</h3>
+        <p>Combines image, audio, and text into one ranked list of likely causes with a confidence score, not a guess dressed as fact.</p>
+      </div>
+      <div class="mod-card reveal reveal-d3">
+        <span class="mod-tag tag-live"><span class="mod-tag-dot"></span>Live</span>
+        <h3>Cost estimation</h3>
+        <p>Regional repair pricing from real historical jobs, so you know if a quote is fair before you agree to it.</p>
+      </div>
+      <div class="mod-card reveal reveal-d1">
+        <span class="mod-tag tag-soon">In progress</span>
+        <h3>Fault evidence library</h3>
+        <p>Every photo, recording, and report stored against your appliance — so the next diagnosis starts smarter.</p>
+      </div>
+      <div class="mod-card reveal reveal-d2">
+        <span class="mod-tag tag-soon">In progress</span>
+        <h3>Technician marketplace</h3>
+        <p>Book someone who's already seen your exact fault — rated by people who had the same problem, not a generic star average.</p>
+      </div>
+      <div class="mod-card reveal reveal-d3">
+        <span class="mod-tag tag-soon">In progress</span>
+        <h3>Appliance health tracking</h3>
+        <p>A running record of every appliance you own — what's failed, what's aging, what's likely next.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARISON -->
+<section class="section" style="padding-top:0;border-top:none;" aria-labelledby="cmp-h2">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="label">The difference</span>
+      <h2 class="display" style="font-size:clamp(28px,3.5vw,42px);margin-top:12px;" id="cmp-h2">Diagnos vs. the old way.</h2>
+    </div>
+    <div class="comparison-table reveal reveal-d1">
+      <div class="cmp-head">
+        <div class="cmp-h">Feature</div>
+        <div class="cmp-h diagnos">Diagnos</div>
+        <div class="cmp-h">Traditional repair</div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-cell feature">Know the problem before calling</div>
+        <div class="cmp-cell diagnos">
+          <span class="check-y"><svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-label="Yes"><path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          Always — before any call
+        </div>
+        <div class="cmp-cell">
+          <span class="check-n"><svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-label="No"><path d="M2.5 2.5L6.5 6.5M6.5 2.5L2.5 6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+          Never — tech tells you
+        </div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-cell feature">Time to first diagnosis</div>
+        <div class="cmp-cell diagnos">
+          <span class="check-y"><svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-label="Yes"><path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          Under 60 seconds
+        </div>
+        <div class="cmp-cell">
+          <span class="check-n"><svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-label="No"><path d="M2.5 2.5L6.5 6.5M6.5 2.5L2.5 6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+          1–3 day wait for visit
+        </div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-cell feature">Know if the quote is fair</div>
+        <div class="cmp-cell diagnos">
+          <span class="check-y"><svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-label="Yes"><path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          Regional price ranges
+        </div>
+        <div class="cmp-cell">
+          <span class="check-n"><svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-label="No"><path d="M2.5 2.5L6.5 6.5M6.5 2.5L2.5 6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+          Guess and hope
+        </div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-cell feature">Appliance history tracking</div>
+        <div class="cmp-cell diagnos">
+          <span class="check-y"><svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-label="Yes"><path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          Automatic, per device
+        </div>
+        <div class="cmp-cell">
+          <span class="check-n"><svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-label="No"><path d="M2.5 2.5L6.5 6.5M6.5 2.5L2.5 6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+          Paper receipts, if kept
+        </div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-cell feature">Cost to diagnose</div>
+        <div class="cmp-cell diagnos">
+          <span class="check-y"><svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-label="Yes"><path d="M1.5 4.5L3.5 6.5L7.5 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          Free — first diagnosis
+        </div>
+        <div class="cmp-cell">
+          <span class="check-n"><svg width="9" height="9" viewBox="0 0 9 9" fill="none" aria-label="No"><path d="M2.5 2.5L6.5 6.5M6.5 2.5L2.5 6.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+          ₹200–₹500 visit charge
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="section" aria-labelledby="testi-h2">
+  <div class="wrap">
+    <div class="reveal">
+      <span class="label">What people say</span>
+      <h2 class="display" style="font-size:clamp(28px,3.5vw,42px);margin-top:12px;" id="testi-h2">People who stopped<br>being taken advantage of.</h2>
+    </div>
+    <div class="testimonials-grid">
+      <div class="testi reveal reveal-d1">
+        <div class="testi-stars" aria-label="5 stars">
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+        </div>
+        <p class="testi-body">"The technician quoted ₹6,000. Diagnos told me it was a <strong>compressor relay</strong> — a ₹400 part. I went back in, told him what I knew. Paid ₹800 total."</p>
+        <div class="testi-author">
+          <div class="testi-avatar" aria-hidden="true">PR</div>
+          <div>
+            <div class="testi-name">Priya Reddy</div>
+            <div class="testi-loc">Bengaluru</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi reveal reveal-d2">
+        <div class="testi-stars" aria-label="5 stars">
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+        </div>
+        <p class="testi-body">"My AC was clicking. Three apps told me nothing. Diagnos picked up <strong>fan blade imbalance</strong> from a 10-second audio clip and was right."</p>
+        <div class="testi-author">
+          <div class="testi-avatar" aria-hidden="true">AS</div>
+          <div>
+            <div class="testi-name">Arjun Sharma</div>
+            <div class="testi-loc">Mumbai</div>
+          </div>
+        </div>
+      </div>
+      <div class="testi reveal reveal-d3">
+        <div class="testi-stars" aria-label="5 stars">
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+          <svg viewBox="0 0 12 12"><path d="M6 1l1.5 3 3.5.5-2.5 2.5.5 3.5L6 9 3 10.5l.5-3.5L1 4.5 4.5 4z"/></svg>
+        </div>
+        <p class="testi-body">"I manage 11 rental units. Diagnos flags <strong>early failure signs</strong> before tenants notice. I've avoided two emergency repair calls this quarter alone."</p>
+        <div class="testi-author">
+          <div class="testi-avatar" aria-hidden="true">NP</div>
+          <div>
+            <div class="testi-name">Nisha Patel</div>
+            <div class="testi-loc">Pune</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section class="section" id="pricing" aria-labelledby="price-h2">
+  <div class="wrap">
+    <div class="reveal" style="text-align:center;">
+      <span class="label">Pricing</span>
+      <h2 class="display" style="font-size:clamp(28px,3.5vw,42px);margin-top:12px;margin-bottom:12px;" id="price-h2">Simple pricing.</h2>
+      <p style="font-size:16px;color:var(--muted);">Start free. Pay when it earns it.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="plan reveal reveal-d1">
+        <div class="plan-name">Starter</div>
+        <div class="plan-desc">Diagnose your first fault and find out if the quote's fair.</div>
+        <div class="plan-price">
+          <span class="plan-curr">₹</span>
+          <span class="plan-num">0</span>
+          <span class="plan-per">/month</span>
+        </div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>3 diagnoses/month</li>
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Image + text input</li>
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Basic cost estimates</li>
+          <li class="plan-feat off"><svg viewBox="0 0 14 14" fill="none"><path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Audio analysis</li>
+          <li class="plan-feat off"><svg viewBox="0 0 14 14" fill="none"><path d="M3 3L11 11M11 3L3 11" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Appliance history</li>
+        </ul>
+        <button type="button" class="btn btn-secondary plan-cta">Get started free</button>
+      </div>
+
+      <div class="plan featured reveal reveal-d2">
+        <div class="plan-badge">Most popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-desc">Full diagnostic power for households who want peace of mind.</div>
+        <div class="plan-price">
+          <span class="plan-curr">₹</span>
+          <span class="plan-num">199</span>
+          <span class="plan-per">/month</span>
+        </div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Unlimited diagnoses</li>
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Image + audio + text input</li>
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Regional cost estimates</li>
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Appliance history — up to 5</li>
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Technician recommendations</li>
+        </ul>
+        <a href="diagnosis.html" class="btn btn-primary plan-cta js-run-diagnosis">
+          Start Pro free
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 6.5H11M11 6.5L7.5 3M11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+
+      <div class="plan reveal reveal-d3">
+        <div class="plan-name">Landlord</div>
+        <div class="plan-desc">For property managers with multiple units and zero margin for surprise breakdowns.</div>
+        <div class="plan-price">
+          <span class="plan-curr">₹</span>
+          <span class="plan-num">799</span>
+          <span class="plan-per">/month</span>
+        </div>
+        <div class="plan-divider"></div>
+        <ul class="plan-features">
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Everything in Pro</li>
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Up to 50 appliances</li>
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Early failure alerts</li>
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Technician marketplace access</li>
+          <li class="plan-feat on"><svg viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>Priority support</li>
+        </ul>
+        <button type="button" class="btn btn-secondary plan-cta">Contact us</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="section" id="faq" style="padding-bottom:80px;" aria-labelledby="faq-h2">
+  <div class="wrap" style="max-width:720px;">
+    <div class="reveal">
+      <span class="label">FAQ</span>
+      <h2 class="display" style="font-size:clamp(28px,3.5vw,42px);margin-top:12px;" id="faq-h2">Questions people actually ask.</h2>
+    </div>
+    <div class="faq-list" role="list">
+      <div class="faq-item" role="listitem">
+        <button type="button" class="faq-q" aria-expanded="false">
+          How accurate is the diagnosis?
+          <span class="faq-icon" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+        </button>
+        <div class="faq-a">
+          <p class="faq-a-inner">Diagnos gives you a ranked list of likely causes with a confidence score — not one hard answer. In testing, the top result matched the actual fault in about 79% of cases when both audio and image were provided. With text only, closer to 63%. We show 45% confidence as 45%, not dressed up as 90%.</p>
+        </div>
+      </div>
+      <div class="faq-item" role="listitem">
+        <button type="button" class="faq-q" aria-expanded="false">
+          Do I need to be technical to use it?
+          <span class="faq-icon" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+        </button>
+        <div class="faq-a">
+          <p class="faq-a-inner">No. If you can describe what sounds or looks wrong, that's enough to start. The more you give — a photo, a short clip, a description — the sharper the result. But two sentences about the problem will get you a starting diagnosis.</p>
+        </div>
+      </div>
+      <div class="faq-item" role="listitem">
+        <button type="button" class="faq-q" aria-expanded="false">
+          What if my appliance isn't on the list?
+          <span class="faq-icon" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+        </button>
+        <div class="faq-a">
+          <p class="faq-a-inner">The engine is currently tuned for refrigerators, ACs, washing machines, air purifiers, and security cameras. We're expanding. For anything else, the text-based symptom checker still gives useful starting points for most home appliances.</p>
+        </div>
+      </div>
+      <div class="faq-item" role="listitem">
+        <button type="button" class="faq-q" aria-expanded="false">
+          Is my data private?
+          <span class="faq-icon" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+        </button>
+        <div class="faq-a">
+          <p class="faq-a-inner">Photos and audio are processed for your diagnosis and stored against your appliance record. They are not shared, sold, or used to train any external model. You can delete any file or your entire account at any time. Full details in the privacy policy.</p>
+        </div>
+      </div>
+      <div class="faq-item" role="listitem">
+        <button type="button" class="faq-q" aria-expanded="false">
+          How does the cost estimate work?
+          <span class="faq-icon" aria-hidden="true"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1V9M1 5H9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></span>
+        </button>
+        <div class="faq-a">
+          <p class="faq-a-inner">Estimates are built from a database of historical repair costs, broken down by fault type and city — the 25th–75th percentile of real job costs, not a manufacturer's suggested price. Enough to know if a quote is in the right range. Not a guarantee of what you'll pay.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-wrap" aria-labelledby="cta-h2">
+  <div class="wrap">
+    <h2 id="cta-h2" class="reveal">Stop guessing.<br><span class="accent">Start knowing.</span></h2>
+    <p class="reveal reveal-d1">Free to run your first diagnosis. No technician visit required.</p>
+    <div class="cta-buttons reveal reveal-d2">
+      <a href="diagnosis.html" class="btn btn-primary js-run-diagnosis">
+        Diagnose your appliance
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 6.5H11M11 6.5L7.5 3M11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <button type="button" class="btn btn-secondary">Learn more</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer role="contentinfo">
+  <div class="wrap">
+    <div class="footer-inner">
+      <div class="nav-logo" style="font-size:15px;">
+        <div class="nav-logo-mark" style="width:24px;height:24px;" aria-hidden="true">
+          <svg viewBox="0 0 22 22" fill="none"><path d="M2 11L6 11L8 5L11 17L14 8L16 11L20 11" stroke="#060E09" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        Diagnos
+      </div>
+      <nav class="footer-links" aria-label="Footer links">
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#">Contact</a>
+      </nav>
+      <div class="footer-copy">© 2026 Diagnos. Built for people, not technicians.</div>
+    </div>
+  </div>
+</footer>
+
+<script src="auth.js"></script>
+<script>
+'use strict';
+
+/* AUTH */
+DiagnosAuth.reflectNavState();
+DiagnosAuth.guardDiagnosisLinks();
+
+/* NAV */
+(function(){
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('solid', window.scrollY > 20);
+  }, { passive: true });
+})();
+
+/* SCROLL REVEAL */
+(function(){
+  const els = document.querySelectorAll('.reveal');
+  if (!window.IntersectionObserver) {
+    els.forEach(el => el.classList.add('in'));
+    return;
+  }
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.1 });
+  els.forEach(el => io.observe(el));
+})();
+
+/* TERMINAL DEMO */
+(function(){
+  const APPS = {
+    fridge:  { file: 'audio-scan.wav — refrigerator',  dur: '14.2s · 44.1kHz', fault: 'Compressor Strain',      conf: 78, cost: '₹2,800–₹4,500' },
+    ac:      { file: 'vibration.wav — AC indoor unit',  dur: '11.8s · 44.1kHz', fault: 'Fan Blade Imbalance',    conf: 84, cost: '₹1,200–₹2,200' },
+    washer:  { file: 'drum-audio.wav — washer',         dur: '18.5s · 44.1kHz', fault: 'Drum Bearing Wear',      conf: 71, cost: '₹3,500–₹6,000' },
+    purifier:{ file: 'filter-noise.wav — purifier',     dur: '9.3s · 44.1kHz',  fault: 'Filter Clog / Overload', conf: 90, cost: '₹400–₹900'     },
+    camera:  { file: 'image-scan.jpg — CCTV unit',      dur: '1920×1080 · 4.2MB',fault: 'IR LED Array Failure',  conf: 67, cost: '₹800–₹1,800'   },
+  };
+
+  let current  = 'fridge';
+  let rafId    = null;
+  let scanning = false;
+
+  const statusEl  = document.getElementById('t-status-text');
+  const fileEl    = document.getElementById('t-wave-file');
+  const durEl     = document.getElementById('t-wave-dur');
+  const pathEl    = document.getElementById('wave-path');
+  const resultEl  = document.getElementById('t-result');
+  const faultEl   = document.getElementById('t-fault');
+  const confFill  = document.getElementById('t-conf-fill');
+  const confText  = document.getElementById('t-conf-text');
+  const costEl    = document.getElementById('t-cost');
+
+  function buildPath(chaos, t) {
+    const W = 540, H = 52, mid = 26, segs = 80;
+    let d = '';
+    for (let i = 0; i <= segs; i++) {
+      const x = (W / segs) * i;
+      const b = Math.sin((i / segs) * Math.PI * 6 + t) * (4 + chaos * 18);
+      const n = (Math.random() - 0.5) * chaos * 14;
+      const y = mid + b + n;
+      d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
+    }
+    return d;
+  }
+
+  function stopRaf() {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  function runIdle() {
+    let t = 0;
+    function tick() {
+      t += 0.04;
+      pathEl.setAttribute('d', buildPath(0.04, t));
+      rafId = requestAnimationFrame(tick);
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function runScan(app) {
+    stopRaf();
+    scanning = true;
+    resultEl.classList.remove('show');
+    confFill.style.transition = 'none';
+    confFill.style.width = '0%';
+
+    const data = APPS[app];
+    fileEl.textContent = data.file;
+    durEl.textContent  = data.dur;
+    statusEl.textContent = 'scanning';
+
+    let frame = 0;
+    const total = 110;
+
+    function tick() {
+      frame++;
+      const p = Math.min(frame / total, 1);
+      const chaos = Math.max(0, 1 - p * 1.2);
+      pathEl.setAttribute('d', buildPath(chaos, frame * 0.18));
+
+      if (p < 1) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        scanning = false;
+        statusEl.textContent = 'resolved';
+        faultEl.textContent = data.fault;
+        confText.textContent = data.conf + '%';
+        costEl.textContent   = data.cost;
+        resultEl.classList.add('show');
+        setTimeout(() => {
+          confFill.style.transition = 'width 0.9s cubic-bezier(0.16,1,0.3,1)';
+          confFill.style.width = data.conf + '%';
+        }, 60);
+        runIdle();
+      }
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  document.querySelectorAll('.t-app-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (scanning) return;
+      document.querySelectorAll('.t-app-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
+      btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
+      current = btn.dataset.app;
+      stopRaf();
+      statusEl.textContent = 'ready';
+      setTimeout(() => runScan(current), 200);
+    });
+  });
+
+  // autostart
+  setTimeout(() => runScan('fridge'), 900);
+})();
+
+/* FAQ */
+document.querySelectorAll('.faq-q').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item = btn.closest('.faq-item');
+    const ans  = item.querySelector('.faq-a');
+    const open = item.classList.contains('open');
+
+    document.querySelectorAll('.faq-item').forEach(i => {
+      i.classList.remove('open');
+      i.querySelector('.faq-a').style.maxHeight = '0';
+      i.querySelector('.faq-q').setAttribute('aria-expanded', 'false');
+    });
+
+    if (!open) {
+      item.classList.add('open');
+      ans.style.maxHeight = ans.scrollHeight + 'px';
+      btn.setAttribute('aria-expanded', 'true');
+    }
+  });
+});
+</script>
+</body>
+</html>

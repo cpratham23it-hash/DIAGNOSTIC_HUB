@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create your account — Diagnos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0C0C0E;
+  --surface:   #111114;
+  --surface-2: #18181C;
+  --border:    rgba(255,255,255,0.07);
+  --border-2:  rgba(255,255,255,0.12);
+  --text:      #EDEDF0;
+  --muted:     #8A8A96;
+  --dim:       #4A4A56;
+  --accent:    #00E5A0;
+  --accent-dim:#00E5A014;
+  --accent-bdr:#00E5A030;
+  --red:       #FF5757;
+  --ff-display: 'Syne', sans-serif;
+  --ff-body:    'Inter', sans-serif;
+  --ff-mono:    'JetBrains Mono', monospace;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ff-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: inherit; border: none; background: none; }
+input { font-family: inherit; color: inherit; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+.display { font-family: var(--ff-display); font-weight: 800; letter-spacing: -0.03em; line-height: 1.0; }
+.label { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 22px; border-radius: 8px; font-size: 14.5px; font-weight: 600;
+  transition: all 0.18s ease; width: 100%;
+}
+.btn svg { flex-shrink: 0; transition: transform 0.18s ease; }
+.btn:hover svg { transform: translateX(2px); }
+.btn-primary { background: var(--accent); color: #060E09; }
+.btn-primary:hover { background: #19FFAD; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,229,160,0.28); }
+.btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border-2); }
+.btn-secondary:hover { color: var(--text); border-color: rgba(255,255,255,0.22); }
+
+/* ─── LEFT PANEL (brand / context) ───────────────────────── */
+.side-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.side-panel::before {
+  content: '';
+  position: absolute;
+  top: -180px; left: -120px;
+  width: 560px; height: 560px;
+  background: radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.nav-logo { display: flex; align-items: center; gap: 9px; font-family: var(--ff-display); font-size: 18px; font-weight: 700; letter-spacing: -0.02em; position: relative; z-index: 1; }
+.nav-logo-mark { width: 28px; height: 28px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+.nav-logo-mark svg { width: 16px; height: 16px; }
+
+.side-content { position: relative; z-index: 1; max-width: 420px; }
+.side-quote {
+  font-family: var(--ff-display);
+  font-size: clamp(26px, 3.2vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin-bottom: 24px;
+}
+.side-quote .accent { color: var(--accent); }
+.side-stats { display: flex; gap: 32px; margin-top: 8px; }
+.side-stat-num { font-family: var(--ff-mono); font-size: 22px; color: var(--accent); font-weight: 600; }
+.side-stat-label { font-size: 12px; color: var(--dim); margin-top: 3px; }
+
+.side-footer { font-size: 13px; color: var(--dim); position: relative; z-index: 1; }
+
+/* ─── RIGHT PANEL (form) ───────────────────────── */
+.form-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+}
+.form-card { width: 100%; max-width: 380px; }
+
+.form-head { margin-bottom: 32px; }
+.form-head h1 { font-size: 28px; margin-bottom: 8px; }
+.form-head p { font-size: 14.5px; color: var(--muted); }
+.form-head p a { color: var(--accent); }
+.form-head p a:hover { text-decoration: underline; }
+
+.field { margin-bottom: 16px; }
+.field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 7px;
+}
+.field input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 14.5px;
+  transition: border-color 0.15s ease;
+}
+.field input::placeholder { color: var(--dim); }
+.field input:focus { border-color: var(--accent-bdr); outline: none; }
+.field input.error { border-color: var(--red); }
+.field-error {
+  font-size: 12px;
+  color: var(--red);
+  margin-top: 6px;
+  display: none;
+}
+.field-error.show { display: block; }
+
+.field-hint { font-size: 11.5px; color: var(--dim); margin-top: 6px; }
+
+.pw-strength {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+.pw-strength-seg { height: 3px; flex: 1; background: var(--border); border-radius: 2px; transition: background 0.2s ease; }
+.pw-strength-seg.weak { background: var(--red); }
+.pw-strength-seg.medium { background: #F5C842; }
+.pw-strength-seg.strong { background: var(--accent); }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 24px 0;
+  font-size: 12px;
+  color: var(--dim);
+}
+.divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.oauth-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--border-2);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 10px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.oauth-btn:hover { border-color: rgba(255,255,255,0.22); background: var(--surface-2); }
+
+.terms-note {
+  font-size: 12px;
+  color: var(--dim);
+  margin-top: 20px;
+  line-height: 1.6;
+}
+.terms-note a { color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-bottom: 22px;
+}
+.checkbox-row input[type="checkbox"] {
+  margin-top: 2px;
+  width: 15px; height: 15px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+}
+.checkbox-row label { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+@media (max-width: 880px) {
+  body { flex-direction: column; }
+  .side-panel { display: none; }
+  .form-panel { padding: 32px 22px; }
+}
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<div class="side-panel">
+  <div class="nav-logo">
+    <div class="nav-logo-mark" aria-hidden="true">
+      <svg viewBox="0 0 22 22" fill="none"><path d="M2 11L6 11L8 5L11 17L14 8L16 11L20 11" stroke="#060E09" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    Diagnos
+  </div>
+
+  <div class="side-content">
+    <p class="side-quote">Know what's <span class="accent">wrong</span> before you call anyone.</p>
+    <div class="side-stats">
+      <div>
+        <div class="side-stat-num">&lt;60s</div>
+        <div class="side-stat-label">to a first diagnosis</div>
+      </div>
+      <div>
+        <div class="side-stat-num">₹0</div>
+        <div class="side-stat-label">cost to find out</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="side-footer">© 2026 Diagnos. Built for people, not technicians.</div>
+</div>
+
+<div class="form-panel">
+  <div class="form-card">
+    <div class="form-head">
+      <h1 class="display">Create your account</h1>
+      <p>Already diagnosing with us? <a href="signin.html">Sign in</a></p>
+    </div>
+
+    <form id="signupForm" novalidate>
+      <div class="field">
+        <label for="fullName">Full name</label>
+        <input type="text" id="fullName" placeholder="Priya Reddy" autocomplete="name">
+        <div class="field-error" id="nameError">Enter your name.</div>
+      </div>
+
+      <div class="field">
+        <label for="email">Email address</label>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+        <div class="field-error" id="emailError">Enter a valid email address.</div>
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="At least 8 characters" autocomplete="new-password">
+        <div class="pw-strength" id="pwStrength">
+          <div class="pw-strength-seg"></div>
+          <div class="pw-strength-seg"></div>
+          <div class="pw-strength-seg"></div>
+        </div>
+        <div class="field-hint" id="pwHint">Use 8+ characters with a mix of letters and numbers.</div>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="terms">
+        <label for="terms">I agree to the <a href="#" style="color:var(--text);text-decoration:underline;">Terms of Service</a> and <a href="#" style="color:var(--text);text-decoration:underline;">Privacy Policy</a>.</label>
+      </div>
+
+      <p id="signupFormError" style="font-size:12.5px;color:var(--red);margin-bottom:14px;display:none;"></p>
+
+      <button type="submit" class="btn btn-primary">
+        Create account
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 6.5H11M11 6.5L7.5 3M11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </form>
+
+    <div class="divider">OR</div>
+
+    <div id="googleSignInDiv" style="display:flex;justify-content:center;"></div>
+
+    <p class="terms-note">By creating an account, you agree that your diagnostic photos and audio are processed only for generating your results and are never sold or used to train external models.</p>
+  </div>
+</div>
+
+<script src="auth.js"></script>
+<script>
+'use strict';
+
+const form = document.getElementById('signupForm');
+const fullName = document.getElementById('fullName');
+const email = document.getElementById('email');
+const password = document.getElementById('password');
+const pwSegs = document.querySelectorAll('.pw-strength-seg');
+const pwHint = document.getElementById('pwHint');
+const signupFormError = document.getElementById('signupFormError');
+
+const API_BASE = 'http://127.0.0.1:8000';
+const GOOGLE_CLIENT_ID = '88273943888-6cmula4m78gpqs0rvlvkb6mrt64mdq3v.apps.googleusercontent.com';
+
+function emailValid(v) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+function getRedirectTarget() {
+  const params = new URLSearchParams(window.location.search);
+  const redirect = params.get('redirect');
+  if (redirect && /^[a-zA-Z0-9_-]+\.html$/.test(redirect)) return redirect;
+  return 'dashboard.html';
+}
+
+function showFormError(message) {
+  signupFormError.textContent = message;
+  signupFormError.style.display = 'block';
+}
+
+function completeSignIn(authResponse) {
+  DiagnosAuth.signIn(authResponse.token, authResponse.user);
+  window.location.href = getRedirectTarget();
+}
+
+function checkStrength(pw) {
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (/[A-Z]/.test(pw) && /[0-9]/.test(pw)) score++;
+  if (pw.length >= 12 && /[^A-Za-z0-9]/.test(pw)) score++;
+  return score;
+}
+
+password.addEventListener('input', () => {
+  const score = checkStrength(password.value);
+  pwSegs.forEach((seg, i) => {
+    seg.className = 'pw-strength-seg';
+    if (password.value.length === 0) return;
+    if (i === 0 && score >= 1) seg.classList.add('weak');
+    if (i === 1 && score >= 2) seg.classList.add('medium');
+    if (i === 2 && score >= 3) seg.classList.add('strong');
+  });
+  if (password.value.length === 0) pwHint.textContent = 'Use 8+ characters with a mix of letters and numbers.';
+  else if (score <= 1) pwHint.textContent = 'Weak — try adding numbers and a capital letter.';
+  else if (score === 2) pwHint.textContent = 'Decent. Add length or a symbol for extra strength.';
+  else pwHint.textContent = 'Strong password.';
+});
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  let valid = true;
+  signupFormError.style.display = 'none';
+
+  document.getElementById('nameError').classList.remove('show');
+  document.getElementById('emailError').classList.remove('show');
+  fullName.classList.remove('error');
+  email.classList.remove('error');
+
+  if (fullName.value.trim().length < 2) {
+    fullName.classList.add('error');
+    document.getElementById('nameError').classList.add('show');
+    valid = false;
+  }
+  if (!emailValid(email.value)) {
+    email.classList.add('error');
+    document.getElementById('emailError').classList.add('show');
+    valid = false;
+  }
+  if (password.value.length < 8) {
+    password.classList.add('error');
+    valid = false;
+  } else {
+    password.classList.remove('error');
+  }
+
+  if (!valid) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: fullName.value.trim(),
+        email: email.value,
+        password: password.value,
+      }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showFormError(data.detail || 'Could not create account. Please try again.');
+      return;
+    }
+    completeSignIn(data);
+  } catch (err) {
+    showFormError('Could not reach the server. Is the backend running?');
+  }
+});
+
+// --- Google Sign-In ---
+async function handleGoogleCredentialResponse(response) {
+  try {
+    const res = await fetch(`${API_BASE}/auth/google`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential: response.credential }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      showFormError(data.detail || 'Google sign-in failed. Please try again.');
+      return;
+    }
+    completeSignIn(data);
+  } catch (err) {
+    showFormError('Could not reach the server. Is the backend running?');
+  }
+}
+
+window.onload = function () {
+  if (window.google && window.google.accounts) {
+    google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredentialResponse,
+    });
+    google.accounts.id.renderButton(
+      document.getElementById('googleSignInDiv'),
+      { theme: 'outline', size: 'large', width: 320, text: 'signup_with' }
+    );
+  }
+};
+</script>
+
+
+</body>
+</html>

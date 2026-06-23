@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Diagnos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0C0C0E;
+  --surface:   #111114;
+  --surface-2: #18181C;
+  --border:    rgba(255,255,255,0.07);
+  --border-2:  rgba(255,255,255,0.12);
+  --text:      #EDEDF0;
+  --muted:     #8A8A96;
+  --dim:       #4A4A56;
+  --accent:    #00E5A0;
+  --accent-dim:#00E5A014;
+  --accent-bdr:#00E5A030;
+  --red:       #FF5757;
+  --red-dim:   #FF575714;
+  --yellow:    #F5C842;
+  --yellow-dim:#F5C84214;
+  --ff-display: 'Syne', sans-serif;
+  --ff-body:    'Inter', sans-serif;
+  --ff-mono:    'JetBrains Mono', monospace;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ff-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+.display { font-family: var(--ff-display); font-weight: 800; letter-spacing: -0.03em; line-height: 1.0; }
+.mono { font-family: var(--ff-mono); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border-radius: 8px; font-size: 13.5px; font-weight: 600;
+  transition: all 0.18s ease; white-space: nowrap;
+}
+.btn svg { flex-shrink: 0; transition: transform 0.18s ease; }
+.btn:hover svg { transform: translateX(2px); }
+.btn-primary { background: var(--accent); color: #060E09; }
+.btn-primary:hover { background: #19FFAD; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,229,160,0.28); }
+.btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border-2); }
+.btn-secondary:hover { color: var(--text); border-color: rgba(255,255,255,0.22); }
+.btn-ghost { color: var(--muted); padding: 8px 10px; }
+.btn-ghost:hover { color: var(--text); }
+
+/* ─── APP SHELL ──────────────────────────────────────────── */
+.shell { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 248px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; bottom: 0; left: 0;
+  padding: 24px 16px;
+}
+
+.sb-logo {
+  display: flex; align-items: center; gap: 9px;
+  font-family: var(--ff-display); font-size: 17px; font-weight: 700; letter-spacing: -0.02em;
+  padding: 0 8px 28px;
+}
+.sb-logo-mark { width: 26px; height: 26px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+.sb-logo-mark svg { width: 15px; height: 15px; }
+
+.sb-nav { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+.sb-link {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; border-radius: 8px;
+  font-size: 14px; color: var(--muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sb-link svg { width: 17px; height: 17px; flex-shrink: 0; }
+.sb-link:hover { background: var(--surface-2); color: var(--text); }
+.sb-link.active { background: var(--accent-dim); color: var(--accent); }
+.sb-link.disabled {
+  color: var(--dim);
+  cursor: default;
+  pointer-events: none;
+}
+.sb-link.disabled:hover { background: none; color: var(--dim); }
+.sb-link-soon {
+  font-family: var(--ff-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  color: var(--dim);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 2px 6px;
+  border-radius: 100px;
+  margin-left: auto;
+}
+
+.sb-section-label {
+  font-family: var(--ff-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--dim); padding: 18px 12px 8px;
+}
+
+.sb-cta {
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-bdr);
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 12px;
+}
+.sb-cta p { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+.sb-cta .btn { width: 100%; justify-content: center; padding: 9px; font-size: 13px; }
+
+.sb-user {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 8px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 16px;
+  padding-top: 16px;
+}
+.sb-avatar {
+  width: 34px; height: 34px; border-radius: 50%; background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #060E09; flex-shrink: 0;
+}
+.sb-user-name { font-size: 13.5px; font-weight: 600; }
+.sb-user-email { font-size: 11.5px; color: var(--dim); }
+.sb-user-menu-wrap { position: relative; margin-left: auto; }
+.sb-user-menu-btn { color: var(--dim); padding: 4px; border-radius: 6px; transition: background 0.15s ease, color 0.15s ease; }
+.sb-user-menu-btn:hover { background: var(--surface-2); color: var(--text); }
+
+.sb-user-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  min-width: 160px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  padding: 6px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.4);
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 60;
+}
+.sb-user-menu.open { display: flex; }
+
+.sb-user-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  font-size: 13.5px;
+  color: var(--text);
+  padding: 9px 10px;
+  border-radius: 7px;
+  transition: background 0.15s ease;
+}
+.sb-user-menu-item:not(.disabled):hover { background: var(--surface); }
+.sb-user-menu-item.disabled {
+  color: var(--dim);
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ─── MAIN CONTENT ───────────────────────────────────────── */
+.main {
+  margin-left: 248px;
+  flex: 1;
+  padding: 40px 48px 80px;
+  max-width: 1180px;
+}
+
+.page-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 36px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.page-head h1 { font-size: 30px; margin-bottom: 6px; }
+.page-head p { font-size: 14.5px; color: var(--muted); }
+
+/* ─── STATS ROW ──────────────────────────────────────────── */
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 40px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+}
+.stat-card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.stat-card-icon { width: 30px; height: 30px; border-radius: 7px; background: var(--surface-2); display: flex; align-items: center; justify-content: center; color: var(--accent); }
+.stat-num { font-family: var(--ff-mono); font-size: 24px; font-weight: 600; }
+.stat-label { font-size: 12.5px; color: var(--dim); margin-top: 2px; }
+
+/* ─── SECTION ─────────────────────────────────────────────── */
+.section-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 18px; }
+.section-row h2 { font-size: 19px; font-weight: 700; }
+.section-link { font-size: 13px; color: var(--accent); }
+.section-link:hover { text-decoration: underline; }
+
+.appliance-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 44px;
+}
+
+.appliance-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+  transition: border-color 0.18s ease, transform 0.18s ease;
+  cursor: pointer;
+}
+.appliance-card:hover { border-color: var(--border-2); transform: translateY(-2px); }
+
+.appliance-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+.appliance-icon { font-size: 26px; }
+.health-pill {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+.health-good { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-bdr); }
+.health-watch { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(245,200,66,0.3); }
+.health-attn { background: var(--red-dim); color: var(--red); border: 1px solid rgba(255,87,87,0.3); }
+
+.appliance-name { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
+.appliance-meta { font-size: 12.5px; color: var(--dim); margin-bottom: 16px; }
+
+.appliance-last {
+  font-size: 12.5px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+.appliance-last strong { color: var(--text); font-weight: 500; }
+
+.add-appliance-card {
+  background: transparent;
+  border: 1.5px dashed var(--border-2);
+  border-radius: 12px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+  min-height: 168px;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.add-appliance-card:hover { border-color: var(--accent-bdr); background: var(--accent-dim); }
+.add-appliance-card svg { color: var(--dim); }
+.add-appliance-card:hover svg { color: var(--accent); }
+.add-appliance-card span { font-size: 13.5px; color: var(--muted); }
+
+/* ─── HISTORY TABLE ──────────────────────────────────────── */
+.history-table {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.history-row {
+  display: grid;
+  grid-template-columns: 2fr 1.6fr 1fr 1fr 0.8fr;
+  align-items: center;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13.5px;
+  transition: background 0.15s ease;
+}
+.history-row:last-child { border-bottom: none; }
+.history-row.head {
+  font-family: var(--ff-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+  background: var(--surface-2);
+  padding: 13px 22px;
+}
+.history-row:not(.head):hover { background: var(--surface-2); }
+
+.hist-appliance { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.hist-fault { color: var(--muted); }
+.hist-conf { font-family: var(--ff-mono); color: var(--text); }
+.hist-date { color: var(--dim); font-family: var(--ff-mono); font-size: 12.5px; }
+.hist-status {
+  font-family: var(--ff-mono);
+  font-size: 10.5px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  width: fit-content;
+}
+.status-resolved { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-bdr); }
+.status-booked { background: rgba(124,158,255,0.1); color: #7C9EFF; border: 1px solid rgba(124,158,255,0.3); }
+.status-open { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(245,200,66,0.3); }
+
+@media (max-width: 1000px) {
+  .stat-row { grid-template-columns: repeat(2, 1fr); }
+  .appliance-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 760px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 28px 20px 60px; }
+  .stat-row { grid-template-columns: 1fr 1fr; }
+  .appliance-grid { grid-template-columns: 1fr; }
+  .history-row { grid-template-columns: 1.6fr 1fr 0.8fr; }
+  .history-row .hist-conf, .history-row .hist-date { display: none; }
+}
+</style>
+</head>
+<body>
+<script src="auth.js"></script>
+<script>DiagnosAuth.requireSignIn('dashboard.html');</script>
+
+<div class="shell">
+
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 22 22" fill="none"><path d="M2 11L6 11L8 5L11 17L14 8L16 11L20 11" stroke="#060E09" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      Diagnos
+    </div>
+
+    <nav class="sb-nav">
+      <a href="dashboard.html" class="sb-link active">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="13" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>
+        Dashboard
+      </a>
+      <a href="diagnosis.html" class="sb-link">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M9 12L11 14L15.5 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/></svg>
+        New diagnosis
+      </a>
+      <span class="sb-link disabled" aria-disabled="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5a2 2 0 0 1 2-2h8l6 6v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" stroke="currentColor" stroke-width="1.6"/><path d="M14 3v6h6" stroke="currentColor" stroke-width="1.6"/></svg>
+        History
+        <span class="sb-link-soon">SOON</span>
+      </span>
+      <span class="sb-link disabled" aria-disabled="true">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 20c0-3.5 3-6 7.5-6s7.5 2.5 7.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        Technicians
+        <span class="sb-link-soon">SOON</span>
+      </span>
+
+      <div class="sb-section-label">Account</div>
+      <span class="sb-link disabled" aria-disabled="true">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V19a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H4a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H10a1.65 1.65 0 0 0 1-1.51V4a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V10a1.65 1.65 0 0 0 1.51 1H20a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="1.4"/></svg>
+        Settings
+        <span class="sb-link-soon">SOON</span>
+      </span>
+    </nav>
+
+    <div class="sb-cta">
+      <p>Pro unlocks unlimited diagnoses, audio analysis, and technician booking.</p>
+      <a href="index.html#pricing" class="btn btn-primary">Upgrade to Pro</a>
+    </div>
+
+    <div class="sb-user">
+      <div class="sb-avatar" id="sbAvatar">?</div>
+      <div>
+        <div class="sb-user-name" id="sbUserName">—</div>
+        <div class="sb-user-email" id="sbUserEmail">—</div>
+      </div>
+      <div class="sb-user-menu-wrap">
+        <button class="sb-user-menu-btn" id="userMenuBtn" aria-label="Account menu" aria-expanded="false" aria-haspopup="true">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.2" r="1.2" fill="currentColor"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/><circle cx="8" cy="12.8" r="1.2" fill="currentColor"/></svg>
+        </button>
+        <div class="sb-user-menu" id="userMenu" role="menu">
+          <span class="sb-user-menu-item disabled" role="menuitem" aria-disabled="true">
+            Settings
+            <span class="sb-link-soon">SOON</span>
+          </span>
+          <button type="button" class="sb-user-menu-item" id="signOutBtn" role="menuitem">Sign out</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <div class="page-head">
+      <div>
+        <h1 class="display">Welcome back, Priya.</h1>
+        <p>3 appliances tracked · 1 needs attention</p>
+      </div>
+      <a href="diagnosis.html" class="btn btn-primary">
+        Run a new diagnosis
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 6.5H11M11 6.5L7.5 3M11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-card-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 7L9.5 4H14.5L16 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div class="stat-num mono">3</div>
+        <div class="stat-label">Appliances tracked</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-card-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 12L11 14L15.5 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/></svg>
+          </div>
+        </div>
+        <div class="stat-num mono">7</div>
+        <div class="stat-label">Diagnoses run</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-card-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 7v10l8 5 8-5V7l-8-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+        <div class="stat-num mono">₹5,200</div>
+        <div class="stat-label">Estimated saved vs. quoted</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <div class="stat-card-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 20c0-3.5 3-6 7.5-6s7.5 2.5 7.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div class="stat-num mono">1</div>
+        <div class="stat-label">Technician booked</div>
+      </div>
+    </div>
+
+    <div class="section-row">
+      <h2>Your appliances</h2>
+      <a href="#" class="section-link">View all</a>
+    </div>
+    <div class="appliance-grid">
+
+      <div class="appliance-card" data-link="diagnosis.html">
+        <div class="appliance-card-top">
+          <span class="appliance-icon">🧊</span>
+          <span class="health-pill health-attn">NEEDS ATTENTION</span>
+        </div>
+        <div class="appliance-name">Kitchen Refrigerator</div>
+        <div class="appliance-meta">LG · Double Door · 4 yrs old</div>
+        <div class="appliance-last">
+          <span>Last result</span>
+          <strong>Compressor Strain · 78%</strong>
+        </div>
+      </div>
+
+      <div class="appliance-card" data-link="diagnosis.html">
+        <div class="appliance-card-top">
+          <span class="appliance-icon">❄️</span>
+          <span class="health-pill health-watch">WATCH</span>
+        </div>
+        <div class="appliance-name">Bedroom AC</div>
+        <div class="appliance-meta">Daikin · Split · 2 yrs old</div>
+        <div class="appliance-last">
+          <span>Last result</span>
+          <strong>Fan Blade Imbalance · 84%</strong>
+        </div>
+      </div>
+
+      <div class="appliance-card" data-link="diagnosis.html">
+        <div class="appliance-card-top">
+          <span class="appliance-icon">🫧</span>
+          <span class="health-pill health-good">HEALTHY</span>
+        </div>
+        <div class="appliance-name">Washing Machine</div>
+        <div class="appliance-meta">IFB · Front Load · 1 yr old</div>
+        <div class="appliance-last">
+          <span>Last result</span>
+          <strong>No fault detected</strong>
+        </div>
+      </div>
+
+      <a href="diagnosis.html" class="add-appliance-card" style="text-decoration:none;">
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 4V18M4 11H18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span>Add an appliance</span>
+      </a>
+
+    </div>
+
+    <div class="section-row">
+      <h2>Recent diagnoses</h2>
+      <a href="#" class="section-link">View all</a>
+    </div>
+
+    <div class="history-table">
+      <div class="history-row head">
+        <span>Appliance</span>
+        <span>Likely fault</span>
+        <span>Confidence</span>
+        <span>Date</span>
+        <span>Status</span>
+      </div>
+
+      <div class="history-row">
+        <span class="hist-appliance">🧊 Kitchen Refrigerator</span>
+        <span class="hist-fault">Compressor Strain</span>
+        <span class="hist-conf">78%</span>
+        <span class="hist-date">18 JUN 2026</span>
+        <span class="hist-status status-open">OPEN</span>
+      </div>
+      <div class="history-row">
+        <span class="hist-appliance">❄️ Bedroom AC</span>
+        <span class="hist-fault">Fan Blade Imbalance</span>
+        <span class="hist-conf">84%</span>
+        <span class="hist-date">14 JUN 2026</span>
+        <span class="hist-status status-booked">TECHNICIAN BOOKED</span>
+      </div>
+      <div class="history-row">
+        <span class="hist-appliance">🫧 Washing Machine</span>
+        <span class="hist-fault">No fault detected</span>
+        <span class="hist-conf">—</span>
+        <span class="hist-date">02 JUN 2026</span>
+        <span class="hist-status status-resolved">RESOLVED</span>
+      </div>
+      <div class="history-row">
+        <span class="hist-appliance">🧊 Kitchen Refrigerator</span>
+        <span class="hist-fault">Start Relay Failure</span>
+        <span class="hist-conf">61%</span>
+        <span class="hist-date">29 MAY 2026</span>
+        <span class="hist-status status-resolved">RESOLVED</span>
+      </div>
+      <div class="history-row">
+        <span class="hist-appliance">❄️ Bedroom AC</span>
+        <span class="hist-fault">Capacitor Fault</span>
+        <span class="hist-conf">55%</span>
+        <span class="hist-date">11 MAY 2026</span>
+        <span class="hist-status status-resolved">RESOLVED</span>
+      </div>
+    </div>
+
+  </main>
+
+</div>
+
+<script>
+'use strict';
+document.querySelectorAll('.appliance-card[data-link]').forEach(card => {
+  card.addEventListener('click', () => { window.location.href = card.dataset.link; });
+});
+
+// Account menu dropdown
+const userMenuBtn = document.getElementById('userMenuBtn');
+const userMenu = document.getElementById('userMenu');
+
+function closeUserMenu() {
+  userMenu.classList.remove('open');
+  userMenuBtn.setAttribute('aria-expanded', 'false');
+}
+
+userMenuBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const isOpen = userMenu.classList.toggle('open');
+  userMenuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+});
+
+document.addEventListener('click', (e) => {
+  if (!userMenu.contains(e.target) && e.target !== userMenuBtn) {
+    closeUserMenu();
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeUserMenu();
+});
+
+document.getElementById('signOutBtn').addEventListener('click', () => {
+  DiagnosAuth.signOut();
+  window.location.href = 'index.html';
+});
+
+// Populate the sidebar with the actual signed-in user (requireSignIn above
+// already guarantees we have a token; this just reads the cached user info
+// saved at sign-in time, so no extra API call is needed here).
+(function populateUserInfo() {
+  const user = DiagnosAuth.getUser();
+  if (!user) return;
+  const initials = (user.name || '?')
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  document.getElementById('sbAvatar').textContent = initials || '?';
+  document.getElementById('sbUserName').textContent = user.name || 'Account';
+  document.getElementById('sbUserEmail').textContent = user.email || '';
+})();
+</script>
+
+</body>
+</html>

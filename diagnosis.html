@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Run a diagnosis — Diagnos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+
+/* ─── TOKENS (matches homepage) ───────────────────────────── */
+:root {
+  --bg:        #0C0C0E;
+  --surface:   #111114;
+  --surface-2: #18181C;
+  --border:    rgba(255,255,255,0.07);
+  --border-2:  rgba(255,255,255,0.12);
+
+  --text:      #EDEDF0;
+  --muted:     #8A8A96;
+  --dim:       #4A4A56;
+
+  --accent:    #00E5A0;
+  --accent-dim:#00E5A014;
+  --accent-bdr:#00E5A030;
+
+  --red:       #FF5757;
+  --red-dim:   #FF575714;
+  --yellow:    #F5C842;
+
+  --ff-display: 'Syne', sans-serif;
+  --ff-body:    'Inter', sans-serif;
+  --ff-mono:    'JetBrains Mono', monospace;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ff-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: inherit; border: none; background: none; }
+ul, ol { list-style: none; }
+input, textarea { font-family: inherit; color: inherit; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.display {
+  font-family: var(--ff-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.0;
+}
+.label {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.wrap { max-width: 880px; margin: 0 auto; padding: 0 24px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+.btn svg { flex-shrink: 0; transition: transform 0.18s ease; }
+.btn:hover svg { transform: translateX(2px); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn:disabled:hover svg { transform: none; }
+
+.btn-primary { background: var(--accent); color: #060E09; }
+.btn-primary:hover:not(:disabled) {
+  background: #19FFAD;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(0,229,160,0.28);
+}
+.btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border-2); }
+.btn-secondary:hover { color: var(--text); border-color: rgba(255,255,255,0.22); }
+
+/* ─── TOP BAR ──────────────────────────────────────────────── */
+#topbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  background: rgba(12,12,14,0.88);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-inner {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nav-logo {
+  display: flex; align-items: center; gap: 9px;
+  font-family: var(--ff-display); font-size: 16px; font-weight: 700; letter-spacing: -0.02em;
+}
+.nav-logo-mark {
+  width: 26px; height: 26px; background: var(--accent); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+}
+.nav-logo-mark svg { width: 15px; height: 15px; }
+.exit-link {
+  font-size: 13.5px;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.15s ease;
+}
+.exit-link:hover { color: var(--muted); }
+
+/* ─── STEP HEADER / PROGRESS ───────────────────────────────── */
+.wizard-head {
+  padding: 40px 0 0;
+}
+.step-track {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 28px;
+}
+.step-track-seg {
+  height: 3px;
+  flex: 1;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+.step-track-seg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s var(--ease);
+}
+.step-track-seg.done::after,
+.step-track-seg.active::after { transform: scaleX(1); }
+.step-track-seg.active::after { background: var(--accent); }
+
+.step-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.step-num { font-family: var(--ff-mono); font-size: 12px; color: var(--accent); }
+.step-of  { font-family: var(--ff-mono); font-size: 12px; color: var(--dim); }
+
+.step-title {
+  font-size: clamp(26px, 3.4vw, 36px);
+  margin-bottom: 8px;
+}
+.step-sub {
+  font-size: 15px;
+  color: var(--muted);
+  max-width: 540px;
+  margin-bottom: 40px;
+}
+
+/* ─── PANELS ──────────────────────────────────────────────── */
+.panel { display: none; }
+.panel.active { display: block; animation: panelIn 0.45s var(--ease); }
+@keyframes panelIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ─── STEP 1: APPLIANCE GRID ─────────────────────────────── */
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.app-pick {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px 18px 22px;
+  text-align: center;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+.app-pick:hover { border-color: var(--border-2); background: var(--surface-2); transform: translateY(-2px); }
+.app-pick.selected { border-color: var(--accent-bdr); background: var(--accent-dim); }
+.app-pick-icon { font-size: 30px; display: block; margin-bottom: 10px; }
+.app-pick-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+.app-pick-sub { font-family: var(--ff-mono); font-size: 10.5px; color: var(--dim); }
+.app-pick.selected .app-pick-sub { color: var(--accent); }
+
+/* ─── STEP 2: INPUT METHODS ──────────────────────────────── */
+.input-stack { display: flex; flex-direction: column; gap: 14px; }
+
+.input-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 24px;
+  transition: border-color 0.18s ease;
+}
+.input-card.filled { border-color: var(--accent-bdr); }
+
+.input-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.input-card-icon {
+  width: 34px; height: 34px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.input-card-title { font-size: 15px; font-weight: 600; }
+.input-card-badge {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  color: var(--dim);
+  margin-left: auto;
+}
+.input-card-badge.on { color: var(--accent); }
+.input-card-body { padding-left: 46px; margin-top: 12px; }
+.input-card-desc { font-size: 13.5px; color: var(--muted); margin-bottom: 14px; }
+
+/* dropzone */
+.dropzone {
+  border: 1.5px dashed var(--border-2);
+  border-radius: 9px;
+  padding: 22px;
+  text-align: center;
+  transition: border-color 0.18s ease, background 0.18s ease;
+  cursor: pointer;
+}
+.dropzone:hover, .dropzone.drag { border-color: var(--accent-bdr); background: var(--accent-dim); }
+.dropzone-text { font-size: 13px; color: var(--muted); }
+.dropzone-text strong { color: var(--text); }
+.dropzone input[type="file"] { display: none; }
+
+.file-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-bdr);
+  color: var(--accent);
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  margin-top: 10px;
+}
+.file-chip button { color: var(--accent); display: flex; opacity: 0.7; }
+.file-chip button:hover { opacity: 1; }
+
+/* audio recorder */
+.rec-row { display: flex; align-items: center; gap: 14px; }
+.rec-btn {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border-2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--red);
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+.rec-btn:hover { border-color: var(--red); }
+.rec-btn.recording { background: var(--red-dim); border-color: var(--red); animation: recPulse 1.4s ease-in-out infinite; }
+@keyframes recPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,87,87,0.35); }
+  50% { box-shadow: 0 0 0 8px rgba(255,87,87,0); }
+}
+.rec-status { font-family: var(--ff-mono); font-size: 13px; color: var(--muted); }
+.rec-status .time { color: var(--text); }
+.rec-divider { font-size: 12px; color: var(--dim); }
+.rec-upload-link { font-size: 13px; color: var(--accent); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+
+/* text symptom */
+.symptom-input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 13px 14px;
+  font-size: 14px;
+  color: var(--text);
+  resize: vertical;
+  min-height: 84px;
+}
+.symptom-input::placeholder { color: var(--dim); }
+.symptom-input:focus { border-color: var(--accent-bdr); outline: none; }
+.symptom-count { font-family: var(--ff-mono); font-size: 11px; color: var(--dim); margin-top: 6px; text-align: right; }
+
+.input-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--dim);
+  margin-top: 18px;
+}
+.input-hint svg { flex-shrink: 0; color: var(--dim); }
+
+/* ─── STEP 3: ANALYZING ───────────────────────────────────── */
+.analyze-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 50px 0 30px;
+}
+.analyze-ring {
+  width: 84px; height: 84px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent);
+  animation: spin 1s linear infinite;
+  margin-bottom: 32px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.analyze-stage {
+  font-size: 17px;
+  font-weight: 600;
+  margin-bottom: 30px;
+  min-height: 24px;
+}
+
+.stage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+}
+.stage-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--ff-mono);
+  font-size: 12.5px;
+  color: var(--dim);
+  padding: 9px 12px;
+  border-radius: 7px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+.stage-item.active { color: var(--text); border-color: var(--accent-bdr); background: var(--accent-dim); }
+.stage-item.done { color: var(--muted); }
+.stage-icon { width: 14px; height: 14px; flex-shrink: 0; }
+.stage-item .spinner-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse-dot 1s ease-in-out infinite; }
+@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* ─── STEP 4: RESULTS ─────────────────────────────────────── */
+.result-summary {
+  background: var(--surface);
+  border: 1px solid var(--accent-bdr);
+  border-radius: 12px;
+  padding: 26px;
+  margin-bottom: 28px;
+}
+.result-summary-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
+}
+.result-fault { font-size: 21px; font-weight: 700; font-family: var(--ff-display); }
+.result-conf-badge {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-bdr);
+  padding: 4px 10px;
+  border-radius: 100px;
+  flex-shrink: 0;
+}
+.result-summary-desc { font-size: 14px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+
+.result-block-title {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin: 28px 0 14px;
+}
+
+.cause-list { display: flex; flex-direction: column; gap: 10px; }
+.cause-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 14px 16px;
+}
+.cause-rank { font-family: var(--ff-mono); font-size: 12px; color: var(--dim); width: 18px; flex-shrink: 0; }
+.cause-name { font-size: 14px; font-weight: 500; flex: 1; min-width: 140px; }
+.cause-bar-track { width: 100px; height: 5px; background: var(--border); border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+.cause-bar-fill { height: 100%; background: var(--accent); border-radius: 3px; width: 0; transition: width 0.9s var(--ease); }
+.cause-pct { font-family: var(--ff-mono); font-size: 12.5px; color: var(--muted); width: 38px; text-align: right; flex-shrink: 0; }
+
+.cost-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 18px 20px;
+}
+.cost-label { font-size: 13.5px; color: var(--muted); }
+.cost-value { font-family: var(--ff-mono); font-size: 19px; font-weight: 600; color: var(--accent); }
+.cost-region { font-family: var(--ff-mono); font-size: 11px; color: var(--dim); margin-top: 3px; }
+
+.result-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 34px;
+  flex-wrap: wrap;
+}
+
+.confidence-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  color: var(--dim);
+  margin-top: 22px;
+  line-height: 1.6;
+}
+.confidence-note svg { flex-shrink: 0; margin-top: 2px; }
+
+/* ─── FOOTER NAV ──────────────────────────────────────────── */
+.wizard-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 36px 0 80px;
+}
+
+@media (max-width: 700px) {
+  .app-grid { grid-template-columns: repeat(2, 1fr); }
+  .input-card-body { padding-left: 0; margin-top: 14px; }
+  .result-summary-top { flex-direction: column; gap: 10px; }
+  .cause-name { min-width: 100px; }
+}
+</style>
+</head>
+<body>
+<script src="auth.js"></script>
+<script>DiagnosAuth.requireSignIn('diagnosis.html');</script>
+
+<header id="topbar">
+  <div class="topbar-inner">
+    <div class="nav-logo">
+      <div class="nav-logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 22 22" fill="none"><path d="M2 11L6 11L8 5L11 17L14 8L16 11L20 11" stroke="#060E09" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      Diagnos
+    </div>
+    <a href="index.html" class="exit-link">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M3 3L8 8M8 3L3 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      Exit diagnosis
+    </a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="wizard-head">
+    <div class="step-track" role="progressbar" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" id="stepTrack">
+      <div class="step-track-seg active" data-seg="1"></div>
+      <div class="step-track-seg" data-seg="2"></div>
+      <div class="step-track-seg" data-seg="3"></div>
+      <div class="step-track-seg" data-seg="4"></div>
+    </div>
+  </div>
+
+  <!-- STEP 1: APPLIANCE -->
+  <section class="panel active" id="panel-1" aria-labelledby="step1-title">
+    <div class="step-meta">
+      <span class="step-num">STEP 01</span>
+      <span class="step-of">OF 04</span>
+    </div>
+    <h1 class="step-title display" id="step1-title">What's giving you trouble?</h1>
+    <p class="step-sub">Pick the appliance. This tells the diagnostic engine which fault library to check against.</p>
+
+    <div class="app-grid" role="radiogroup" aria-label="Select appliance">
+      <button type="button" class="app-pick" data-app="fridge" data-app-name="Refrigerator" role="radio" aria-checked="false">
+        <span class="app-pick-icon" role="img" aria-label="Refrigerator">🧊</span>
+        <div class="app-pick-name">Refrigerator</div>
+        <div class="app-pick-sub">12 fault signatures</div>
+      </button>
+      <button type="button" class="app-pick" data-app="ac" data-app-name="Air Conditioner" role="radio" aria-checked="false">
+        <span class="app-pick-icon" role="img" aria-label="Air Conditioner">❄️</span>
+        <div class="app-pick-name">Air Conditioner</div>
+        <div class="app-pick-sub">9 fault signatures</div>
+      </button>
+      <button type="button" class="app-pick" data-app="washer" data-app-name="Washing Machine" role="radio" aria-checked="false">
+        <span class="app-pick-icon" role="img" aria-label="Washing Machine">🫧</span>
+        <div class="app-pick-name">Washing Machine</div>
+        <div class="app-pick-sub">11 fault signatures</div>
+      </button>
+      <button type="button" class="app-pick" data-app="purifier" data-app-name="Air Purifier" role="radio" aria-checked="false">
+        <span class="app-pick-icon" role="img" aria-label="Air Purifier">💨</span>
+        <div class="app-pick-name">Air Purifier</div>
+        <div class="app-pick-sub">7 fault signatures</div>
+      </button>
+      <button type="button" class="app-pick" data-app="camera" data-app-name="Security Camera" role="radio" aria-checked="false">
+        <span class="app-pick-icon" role="img" aria-label="Security Camera">📷</span>
+        <div class="app-pick-name">Security Camera</div>
+        <div class="app-pick-sub">8 fault signatures</div>
+      </button>
+    </div>
+
+    <div class="wizard-foot">
+      <span></span>
+      <button type="button" class="btn btn-primary" id="toStep2" disabled>
+        Continue
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 6.5H11M11 6.5L7.5 3M11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- STEP 2: INPUT -->
+  <section class="panel" id="panel-2" aria-labelledby="step2-title">
+    <div class="step-meta">
+      <span class="step-num">STEP 02</span>
+      <span class="step-of">OF 04</span>
+    </div>
+    <h1 class="step-title display" id="step2-title">Give us what you've got.</h1>
+    <p class="step-sub">A photo, a sound, or just a description — any one works. Combine more for a sharper result.</p>
+
+    <div class="input-stack">
+
+      <!-- IMAGE -->
+      <div class="input-card" id="imageCard">
+        <div class="input-card-head">
+          <span class="input-card-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 7L9.5 4H14.5L16 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="13" r="3.2" stroke="currentColor" stroke-width="1.6"/></svg>
+          </span>
+          <span class="input-card-title">Photo</span>
+          <span class="input-card-badge" id="imageBadge">NOT ADDED</span>
+        </div>
+        <div class="input-card-body">
+          <p class="input-card-desc">A clear shot of the rust, leak, damage, or general unit. Best for visible faults.</p>
+          <label class="dropzone" id="imageDropzone" tabindex="0">
+            <input type="file" id="imageInput" accept="image/*">
+            <div class="dropzone-text"><strong>Click to upload</strong> or drag a photo here</div>
+          </label>
+          <div id="imageFileArea"></div>
+        </div>
+      </div>
+
+      <!-- AUDIO -->
+      <div class="input-card" id="audioCard">
+        <div class="input-card-head">
+          <span class="input-card-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Z" stroke="currentColor" stroke-width="1.6"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </span>
+          <span class="input-card-title">Sound</span>
+          <span class="input-card-badge" id="audioBadge">NOT ADDED</span>
+        </div>
+        <div class="input-card-body">
+          <p class="input-card-desc">Hold your mic near the unit for 10–15 seconds. Best for compressor, fan, and bearing faults.</p>
+          <div class="rec-row">
+            <button type="button" class="rec-btn" id="recBtn" aria-label="Start recording">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" id="recIcon"><circle cx="8" cy="8" r="6" fill="currentColor"/></svg>
+            </button>
+            <span class="rec-status" id="recStatus">Tap to record · <span class="time">00:00</span></span>
+            <span class="rec-divider">or</span>
+            <span class="rec-upload-link" id="audioUploadLink">upload a file</span>
+            <input type="file" id="audioInput" accept="audio/*" style="display:none;">
+          </div>
+          <div id="audioFileArea"></div>
+        </div>
+      </div>
+
+      <!-- TEXT -->
+      <div class="input-card" id="textCard">
+        <div class="input-card-head">
+          <span class="input-card-icon" aria-hidden="true">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </span>
+          <span class="input-card-title">Describe it</span>
+          <span class="input-card-badge" id="textBadge">NOT ADDED</span>
+        </div>
+        <div class="input-card-body">
+          <p class="input-card-desc">What's happening, and when? "Fridge stopped cooling" tells us less than "Fridge runs constantly, back panel feels hot, started 3 days ago."</p>
+          <textarea class="symptom-input" id="symptomInput" placeholder="e.g. Makes a loud clicking noise every time the compressor kicks in, especially at night..." maxlength="500"></textarea>
+          <div class="symptom-count"><span id="symptomCount">0</span>/500</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="input-hint">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M7 4.5V7.5M7 9.5H7.01" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      You need at least one input to continue. More inputs improve confidence.
+    </div>
+
+    <div class="wizard-foot">
+      <button type="button" class="btn btn-secondary" id="backTo1">Back</button>
+      <button type="button" class="btn btn-primary" id="toStep3" disabled>
+        Run diagnosis
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 6.5H11M11 6.5L7.5 3M11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- STEP 3: ANALYZING -->
+  <section class="panel" id="panel-3" aria-labelledby="step3-title">
+    <div class="step-meta">
+      <span class="step-num">STEP 03</span>
+      <span class="step-of">OF 04</span>
+    </div>
+    <h1 class="step-title display" id="step3-title" style="text-align:center;">Reading the signal.</h1>
+
+    <div class="analyze-wrap">
+      <div class="analyze-ring" aria-hidden="true"></div>
+      <div class="analyze-stage" id="analyzeStageText">Starting analysis…</div>
+      <div class="stage-list" id="stageList"></div>
+    </div>
+  </section>
+
+  <!-- STEP 4: RESULTS -->
+  <section class="panel" id="panel-4" aria-labelledby="step4-title">
+    <div class="step-meta">
+      <span class="step-num">STEP 04</span>
+      <span class="step-of">OF 04</span>
+    </div>
+    <h1 class="step-title display" id="step4-title">Saved.</h1>
+    <p class="step-sub" id="resultApplianceLine"></p>
+
+    <div class="result-summary">
+      <div class="result-summary-top">
+        <div class="result-fault" id="primaryFault">Diagnosis pending</div>
+        <span class="result-conf-badge" id="primaryConf">STATUS: PENDING</span>
+      </div>
+      <p class="result-summary-desc" id="primaryDesc">
+        Your diagnosis has been saved. There's no automated fault-detection model running yet —
+        once that's built, this is where your ranked likely causes and confidence score will appear.
+      </p>
+    </div>
+
+    <div class="result-block-title">What was saved</div>
+    <div class="cause-list" id="savedDetailsList"></div>
+
+    <div class="result-actions">
+      <button type="button" class="btn btn-secondary" id="restartBtn">Run another diagnosis</button>
+    </div>
+  </section>
+
+  <!-- ERROR BANNER (shown over step 2/3 if a real API call fails) -->
+  <div id="apiErrorBanner" style="display:none;background:rgba(255,87,87,0.08);border:1px solid rgba(255,87,87,0.25);color:#FF8787;font-size:13px;padding:12px 16px;border-radius:8px;margin-top:18px;">
+  </div>
+
+</main>
+
+<script>
+'use strict';
+
+const API_BASE = 'http://127.0.0.1:8000';
+
+/* ───────────────────────── STATE ───────────────────────── */
+const state = {
+  step: 1,
+  appliance: null,
+  applianceName: null,
+  image: null,
+  audio: null,
+  symptomText: ''
+};
+
+/* ───────────────────────── STEP NAVIGATION ───────────────────────── */
+function goToStep(n) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + n).classList.add('active');
+  state.step = n;
+
+  document.querySelectorAll('.step-track-seg').forEach(seg => {
+    const segNum = parseInt(seg.dataset.seg, 10);
+    seg.classList.toggle('done', segNum < n);
+    seg.classList.toggle('active', segNum <= n);
+  });
+  document.getElementById('stepTrack').setAttribute('aria-valuenow', n);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ───────────────────────── STEP 1: APPLIANCE PICK ───────────────────────── */
+document.querySelectorAll('.app-pick').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.app-pick').forEach(b => {
+      b.classList.remove('selected');
+      b.setAttribute('aria-checked', 'false');
+    });
+    btn.classList.add('selected');
+    btn.setAttribute('aria-checked', 'true');
+    state.appliance = btn.dataset.app;
+    state.applianceName = btn.dataset.appName;
+    document.getElementById('toStep2').disabled = false;
+  });
+});
+
+document.getElementById('toStep2').addEventListener('click', () => {
+  if (!state.appliance) return;
+  goToStep(2);
+});
+
+/* ───────────────────────── STEP 2: INPUTS ───────────────────────── */
+function refreshContinueState() {
+  const hasInput = !!state.image || !!state.audio || state.symptomText.trim().length > 0;
+  document.getElementById('toStep3').disabled = !hasInput;
+}
+
+// Image upload
+const imageDropzone = document.getElementById('imageDropzone');
+const imageInput = document.getElementById('imageInput');
+const imageFileArea = document.getElementById('imageFileArea');
+const imageBadge = document.getElementById('imageBadge');
+const imageCard = document.getElementById('imageCard');
+
+// accept="image/*" on the <input> is only a UI hint — it does nothing for
+// drag-and-drop, and most OS file pickers let you switch to "All Files"
+// anyway. This is the actual gate: nothing reaches state.image unless it
+// passes this check. The backend (storage.py) also verifies the real file
+// bytes once this is wired up to POST /files, so a renamed/relabeled file
+// is caught there too — this is just the first, fast, client-side check.
+const ALLOWED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
+const ALLOWED_IMAGE_MIME_PREFIX = 'image/';
+
+function isAllowedImageFile(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const mimeOk = file.type ? file.type.startsWith(ALLOWED_IMAGE_MIME_PREFIX) : false;
+  const extOk = ALLOWED_IMAGE_EXTENSIONS.includes(ext);
+  // Require BOTH the browser's reported MIME type and the extension to
+  // look like an image. A file.type that's empty/generic (some OSes don't
+  // set it) still has to pass the extension check; a spoofed extension on
+  // a non-image MIME type also fails. Neither signal is fully trustworthy
+  // alone, so both have to agree.
+  if (file.type) return mimeOk && extOk;
+  return extOk;
+}
+
+function showImageTypeError(file) {
+  imageFileArea.innerHTML = '';
+  const err = document.createElement('div');
+  err.style.fontSize = '12.5px';
+  err.style.color = 'var(--red)';
+  err.style.marginTop = '10px';
+  err.textContent = `"${file.name}" isn't a supported image. Upload a JPG, PNG, WEBP, or HEIC photo.`;
+  imageFileArea.appendChild(err);
+}
+
+function setImageFile(file) {
+  if (!file) return;
+  if (!isAllowedImageFile(file)) {
+    showImageTypeError(file);
+    imageInput.value = '';
+    return;
+  }
+  state.image = file;
+  imageBadge.textContent = 'ADDED';
+  imageBadge.classList.add('on');
+  imageCard.classList.add('filled');
+  imageFileArea.innerHTML = '';
+  const chip = document.createElement('span');
+  chip.className = 'file-chip';
+  chip.innerHTML = `<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1.5V9.5M1.5 5.5H9.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" style="display:none;"/></svg>${escapeHtml(file.name)}`;
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.setAttribute('aria-label', 'Remove photo');
+  removeBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2.5 2.5L8.5 8.5M8.5 2.5L2.5 8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+  removeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    state.image = null;
+    imageBadge.textContent = 'NOT ADDED';
+    imageBadge.classList.remove('on');
+    imageCard.classList.remove('filled');
+    imageFileArea.innerHTML = '';
+    imageInput.value = '';
+    refreshContinueState();
+  });
+  chip.appendChild(removeBtn);
+  imageFileArea.appendChild(chip);
+  refreshContinueState();
+}
+
+imageDropzone.addEventListener('click', () => imageInput.click());
+imageDropzone.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); imageInput.click(); } });
+imageInput.addEventListener('change', (e) => setImageFile(e.target.files[0]));
+['dragover', 'dragenter'].forEach(evt => imageDropzone.addEventListener(evt, (e) => { e.preventDefault(); imageDropzone.classList.add('drag'); }));
+['dragleave', 'drop'].forEach(evt => imageDropzone.addEventListener(evt, (e) => { e.preventDefault(); imageDropzone.classList.remove('drag'); }));
+imageDropzone.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) setImageFile(e.dataTransfer.files[0]); });
+
+// Audio: record or upload
+const recBtn = document.getElementById('recBtn');
+const recStatus = document.getElementById('recStatus');
+const audioInput = document.getElementById('audioInput');
+const audioUploadLink = document.getElementById('audioUploadLink');
+const audioFileArea = document.getElementById('audioFileArea');
+const audioBadge = document.getElementById('audioBadge');
+const audioCard = document.getElementById('audioCard');
+
+let recording = false;
+let recTimer = null;
+let recSeconds = 0;
+
+function formatTime(s) {
+  const m = Math.floor(s / 60).toString().padStart(2, '0');
+  const sec = (s % 60).toString().padStart(2, '0');
+  return `${m}:${sec}`;
+}
+
+function setAudioFile(label) {
+  state.audio = label;
+  audioBadge.textContent = 'ADDED';
+  audioBadge.classList.add('on');
+  audioCard.classList.add('filled');
+  audioFileArea.innerHTML = '';
+  const chip = document.createElement('span');
+  chip.className = 'file-chip';
+  chip.textContent = label;
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.setAttribute('aria-label', 'Remove audio');
+  removeBtn.innerHTML = '<svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M2.5 2.5L8.5 8.5M8.5 2.5L2.5 8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+  removeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    state.audio = null;
+    audioBadge.textContent = 'NOT ADDED';
+    audioBadge.classList.remove('on');
+    audioCard.classList.remove('filled');
+    audioFileArea.innerHTML = '';
+    audioInput.value = '';
+    refreshContinueState();
+  });
+  chip.appendChild(removeBtn);
+  audioFileArea.appendChild(chip);
+  refreshContinueState();
+}
+
+recBtn.addEventListener('click', () => {
+  recording = !recording;
+  recBtn.classList.toggle('recording', recording);
+  recBtn.setAttribute('aria-label', recording ? 'Stop recording' : 'Start recording');
+
+  if (recording) {
+    recSeconds = 0;
+    recStatus.innerHTML = 'Recording… <span class="time">00:00</span>';
+    recTimer = setInterval(() => {
+      recSeconds++;
+      recStatus.innerHTML = `Recording… <span class="time">${formatTime(recSeconds)}</span>`;
+    }, 1000);
+  } else {
+    clearInterval(recTimer);
+    recStatus.innerHTML = `Tap to record · <span class="time">00:00</span>`;
+    if (recSeconds > 0) {
+      setAudioFile(`recording-${formatTime(recSeconds)}.wav`);
+    }
+  }
+});
+
+audioUploadLink.addEventListener('click', () => audioInput.click());
+
+// accept="audio/*" on the <input> is only a UI hint — same caveat as the
+// image dropzone above. The recorder path (recBtn) always produces a real
+// .wav from the browser's own mic capture, so it never needs this check;
+// this only guards the "upload a file" link, where any file type could be
+// picked.
+const ALLOWED_AUDIO_EXTENSIONS = ['wav', 'mp3', 'm4a', 'ogg', 'webm', 'mp4'];
+const ALLOWED_AUDIO_MIME_PREFIX = 'audio/';
+
+function isAllowedAudioFile(file) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  const mimeOk = file.type ? file.type.startsWith(ALLOWED_AUDIO_MIME_PREFIX) : false;
+  const extOk = ALLOWED_AUDIO_EXTENSIONS.includes(ext);
+  if (file.type) return mimeOk && extOk;
+  return extOk;
+}
+
+function showAudioTypeError(file) {
+  audioFileArea.innerHTML = '';
+  const err = document.createElement('div');
+  err.style.fontSize = '12.5px';
+  err.style.color = 'var(--red)';
+  err.style.marginTop = '10px';
+  err.textContent = `"${file.name}" isn't a supported audio clip. Upload a WAV, MP3, M4A, OGG, or WEBM recording.`;
+  audioFileArea.appendChild(err);
+}
+
+audioInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!isAllowedAudioFile(file)) {
+    showAudioTypeError(file);
+    audioInput.value = '';
+    return;
+  }
+  setAudioFile(file.name);
+});
+
+// Text symptom
+const symptomInput = document.getElementById('symptomInput');
+const symptomCount = document.getElementById('symptomCount');
+const textBadge = document.getElementById('textBadge');
+const textCard = document.getElementById('textCard');
+
+symptomInput.addEventListener('input', () => {
+  state.symptomText = symptomInput.value;
+  symptomCount.textContent = symptomInput.value.length;
+  const has = symptomInput.value.trim().length > 0;
+  textBadge.textContent = has ? 'ADDED' : 'NOT ADDED';
+  textBadge.classList.toggle('on', has);
+  textCard.classList.toggle('filled', has);
+  refreshContinueState();
+});
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+document.getElementById('backTo1').addEventListener('click', () => goToStep(1));
+
+document.getElementById('toStep3').addEventListener('click', () => {
+  goToStep(3);
+  runAnalysis();
+});
+
+/* ───────────────────────── STEP 3: REAL SUBMISSION ─────────────────────────
+   This used to be a fake setTimeout choreography that always ended in the
+   same hardcoded FAULT_DATA result regardless of input. It now actually
+   calls the backend:
+     1. If there's a real image file, upload it via POST /files (kind=image)
+        to get back an image_file_id.
+     2. Call POST /diagnoses with appliance_type, image_file_id (if any),
+        and symptom_text (if any).
+   state.audio is intentionally NOT submitted yet — the recorder is a pure
+   UI simulation right now (no real microphone capture), and the
+   upload-a-file link only stores a label string, not a real File. Wiring
+   audio up for real is separate work. Until then, any audio "added" in the
+   UI is visual only and won't appear in the saved diagnosis.
+*/
+function showApiError(message) {
+  const banner = document.getElementById('apiErrorBanner');
+  banner.textContent = message;
+  banner.style.display = 'block';
+}
+
+function hideApiError() {
+  document.getElementById('apiErrorBanner').style.display = 'none';
+}
+
+async function uploadImageFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('kind', 'image');
+
+  const res = await DiagnosAuth.authFetch(`${API_BASE}/files`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let detail = 'Could not upload the image.';
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch (e) { /* response wasn't JSON — keep the generic message */ }
+    throw new Error(detail);
+  }
+
+  const data = await res.json();
+  return data.id; // file_id
+}
+
+async function createDiagnosis({ imageFileId, symptomText }) {
+  const payload = { appliance_type: state.appliance };
+  if (imageFileId) payload.image_file_id = imageFileId;
+  if (symptomText && symptomText.trim()) payload.symptom_text = symptomText.trim();
+
+  const res = await DiagnosAuth.authFetch(`${API_BASE}/diagnoses`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    let detail = 'Could not save the diagnosis.';
+    try {
+      const body = await res.json();
+      detail = body.detail || detail;
+    } catch (e) { /* response wasn't JSON */ }
+    throw new Error(detail);
+  }
+
+  return res.json();
+}
+
+function setStageState(stageEl, label, mode) {
+  // mode: 'active' | 'done' | 'error'
+  stageEl.classList.remove('active', 'done');
+  if (mode === 'active') {
+    stageEl.classList.add('active');
+    stageEl.innerHTML = `<span class="spinner-dot" style="display:inline-block;"></span><span class="stage-label">${label}</span>`;
+  } else if (mode === 'done') {
+    stageEl.classList.add('done');
+    stageEl.innerHTML = `<svg class="stage-icon" viewBox="0 0 14 14" fill="none"><path d="M2.5 7L5.5 10L11.5 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="stage-label">${label}</span>`;
+  } else {
+    stageEl.innerHTML = `<span class="stage-label" style="color:var(--red);">${label}</span>`;
+  }
+}
+
+async function runAnalysis() {
+  hideApiError();
+
+  const stages = [];
+  if (state.image) stages.push({ key: 'image', label: 'Uploading photo' });
+  stages.push({ key: 'save', label: 'Saving your diagnosis' });
+
+  const stageList = document.getElementById('stageList');
+  const stageText = document.getElementById('analyzeStageText');
+  stageList.innerHTML = '';
+
+  stages.forEach((s) => {
+    const el = document.createElement('div');
+    el.className = 'stage-item';
+    el.id = 'stage-' + s.key;
+    el.innerHTML = `<span class="spinner-dot" style="display:none;"></span><span class="stage-label">${s.label}</span>`;
+    stageList.appendChild(el);
+  });
+
+  try {
+    let imageFileId = null;
+
+    if (state.image) {
+      const imgStage = document.getElementById('stage-image');
+      setStageState(imgStage, 'Uploading photo', 'active');
+      stageText.textContent = 'Uploading photo…';
+      imageFileId = await uploadImageFile(state.image);
+      setStageState(imgStage, 'Photo uploaded', 'done');
+    }
+
+    const saveStage = document.getElementById('stage-save');
+    setStageState(saveStage, 'Saving your diagnosis', 'active');
+    stageText.textContent = 'Saving your diagnosis…';
+
+    const diagnosis = await createDiagnosis({
+      imageFileId,
+      symptomText: state.symptomText,
+    });
+
+    setStageState(saveStage, 'Saved', 'done');
+    stageText.textContent = 'Done.';
+
+    setTimeout(() => showResults(diagnosis), 350);
+  } catch (err) {
+    stageText.textContent = 'Something went wrong.';
+    showApiError(err.message || 'Could not save your diagnosis. Check your connection and try again.');
+  }
+}
+
+/* ───────────────────────── STEP 4: RESULTS (real saved data) ───────────────────────── */
+function showResults(diagnosis) {
+  document.getElementById('resultApplianceLine').textContent =
+    `Saved for your ${state.applianceName.toLowerCase()}.`;
+
+  const list = document.getElementById('savedDetailsList');
+  list.innerHTML = '';
+
+  const rows = [
+    ['Appliance', state.applianceName],
+    ['Image', diagnosis.image_file_id ? 'Saved' : 'Not provided'],
+    ['Description', diagnosis.symptom_text ? diagnosis.symptom_text : 'Not provided'],
+    ['Status', diagnosis.status],
+  ];
+
+  rows.forEach(([label, value]) => {
+    const row = document.createElement('div');
+    row.className = 'cause-row';
+    row.innerHTML = `
+      <span class="cause-name" style="min-width:120px;color:var(--dim);font-family:var(--ff-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">${escapeHtml(label)}</span>
+      <span class="cause-name" style="flex:1;">${escapeHtml(String(value))}</span>
+    `;
+    list.appendChild(row);
+  });
+
+  goToStep(4);
+}
+
+document.getElementById('restartBtn').addEventListener('click', () => {
+  state.appliance = null;
+  state.applianceName = null;
+  state.image = null;
+  state.audio = null;
+  state.symptomText = '';
+
+  document.querySelectorAll('.app-pick').forEach(b => { b.classList.remove('selected'); b.setAttribute('aria-checked', 'false'); });
+  document.getElementById('toStep2').disabled = true;
+
+  [imageFileArea, audioFileArea].forEach(el => el.innerHTML = '');
+  [imageBadge, audioBadge, textBadge].forEach(b => { b.textContent = 'NOT ADDED'; b.classList.remove('on'); });
+  [imageCard, audioCard, textCard].forEach(c => c.classList.remove('filled'));
+  symptomInput.value = '';
+  symptomCount.textContent = '0';
+  document.getElementById('toStep3').disabled = true;
+  hideApiError();
+
+  goToStep(1);
+});
+</script>
+
+</body>
+</html>

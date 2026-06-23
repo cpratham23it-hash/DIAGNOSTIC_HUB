@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Book a technician — Diagnos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0C0C0E;
+  --surface:   #111114;
+  --surface-2: #18181C;
+  --border:    rgba(255,255,255,0.07);
+  --border-2:  rgba(255,255,255,0.12);
+  --text:      #EDEDF0;
+  --muted:     #8A8A96;
+  --dim:       #4A4A56;
+  --accent:    #00E5A0;
+  --accent-dim:#00E5A014;
+  --accent-bdr:#00E5A030;
+  --red:       #FF5757;
+  --yellow:    #F5C842;
+  --ff-display: 'Syne', sans-serif;
+  --ff-body:    'Inter', sans-serif;
+  --ff-mono:    'JetBrains Mono', monospace;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ff-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: inherit; border: none; background: none; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.display { font-family: var(--ff-display); font-weight: 800; letter-spacing: -0.03em; line-height: 1.0; }
+.mono { font-family: var(--ff-mono); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 22px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  transition: all 0.18s ease; white-space: nowrap;
+}
+.btn svg { flex-shrink: 0; transition: transform 0.18s ease; }
+.btn:hover svg { transform: translateX(2px); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #060E09; }
+.btn-primary:hover:not(:disabled) { background: #19FFAD; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,229,160,0.28); }
+.btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border-2); }
+.btn-secondary:hover { color: var(--text); border-color: rgba(255,255,255,0.22); }
+
+#topbar {
+  position: sticky; top: 0; z-index: 50; height: 64px;
+  display: flex; align-items: center;
+  background: rgba(12,12,14,0.88); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-inner { width: 100%; max-width: 980px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; }
+.nav-logo { display: flex; align-items: center; gap: 9px; font-family: var(--ff-display); font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
+.nav-logo-mark { width: 26px; height: 26px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+.nav-logo-mark svg { width: 15px; height: 15px; }
+.exit-link { font-size: 13.5px; color: var(--dim); display: flex; align-items: center; gap: 6px; transition: color 0.15s ease; }
+.exit-link:hover { color: var(--muted); }
+
+.wrap { max-width: 980px; margin: 0 auto; padding: 0 24px; }
+
+.page-head { padding: 40px 0 32px; }
+.page-head h1 { font-size: clamp(26px, 3.4vw, 34px); margin-bottom: 8px; }
+.page-head p { font-size: 14.5px; color: var(--muted); }
+
+/* context strip carried from diagnosis */
+.context-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border: 1px solid var(--accent-bdr);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 36px;
+}
+.context-icon { font-size: 22px; }
+.context-text { font-size: 13.5px; color: var(--muted); }
+.context-text strong { color: var(--text); }
+.context-conf {
+  margin-left: auto;
+  font-family: var(--ff-mono);
+  font-size: 11.5px;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-bdr);
+  padding: 4px 10px;
+  border-radius: 100px;
+  flex-shrink: 0;
+}
+
+.layout { display: grid; grid-template-columns: 1fr 320px; gap: 28px; align-items: start; }
+
+/* filters */
+.filter-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.filter-chip {
+  font-size: 12.5px;
+  padding: 7px 13px;
+  border-radius: 100px;
+  border: 1px solid var(--border-2);
+  color: var(--muted);
+  transition: all 0.15s ease;
+}
+.filter-chip:hover { color: var(--text); border-color: rgba(255,255,255,0.22); }
+.filter-chip.active { color: var(--accent); background: var(--accent-dim); border-color: var(--accent-bdr); }
+
+/* technician cards */
+.tech-list { display: flex; flex-direction: column; gap: 12px; }
+.tech-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  transition: border-color 0.18s ease;
+  cursor: pointer;
+}
+.tech-card:hover { border-color: var(--border-2); }
+.tech-card.selected { border-color: var(--accent-bdr); background: var(--accent-dim); }
+
+.tech-avatar {
+  width: 52px; height: 52px; border-radius: 10px;
+  background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; font-weight: 700; color: var(--accent);
+  flex-shrink: 0;
+}
+
+.tech-info { flex: 1; min-width: 0; }
+.tech-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 4px; }
+.tech-name { font-size: 15.5px; font-weight: 600; }
+.tech-price { font-family: var(--ff-mono); font-size: 14px; color: var(--accent); white-space: nowrap; }
+
+.tech-rating { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+.tech-rating .stars { color: var(--yellow); }
+
+.tech-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.tech-tag {
+  font-family: var(--ff-mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.tech-tag.match { color: var(--accent); border-color: var(--accent-bdr); background: var(--accent-dim); }
+
+.tech-meta { display: flex; gap: 16px; font-size: 12px; color: var(--dim); }
+.tech-meta span { display: flex; align-items: center; gap: 5px; }
+.tech-meta svg { flex-shrink: 0; }
+
+.tech-radio {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-2);
+  flex-shrink: 0;
+  margin-top: 2px;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color 0.18s ease;
+}
+.tech-card.selected .tech-radio { border-color: var(--accent); }
+.tech-radio-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); opacity: 0; transition: opacity 0.15s ease; }
+.tech-card.selected .tech-radio-dot { opacity: 1; }
+
+/* booking summary sidebar */
+.summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+  position: sticky;
+  top: 88px;
+}
+.summary-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+.summary-row {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  font-size: 13.5px; padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.summary-row:last-of-type { border-bottom: none; }
+.summary-row .k { color: var(--dim); }
+.summary-row .v { color: var(--text); text-align: right; max-width: 60%; }
+
+.slot-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 18px; }
+.slot-btn {
+  font-family: var(--ff-mono);
+  font-size: 12px;
+  padding: 9px;
+  text-align: center;
+  border-radius: 7px;
+  border: 1px solid var(--border-2);
+  color: var(--muted);
+  transition: all 0.15s ease;
+}
+.slot-btn:hover { border-color: rgba(255,255,255,0.22); color: var(--text); }
+.slot-btn.selected { border-color: var(--accent-bdr); background: var(--accent-dim); color: var(--accent); }
+.slot-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.summary-total { display: flex; justify-content: space-between; align-items: baseline; padding: 14px 0; margin-top: 6px; border-top: 1px solid var(--border); }
+.summary-total .k { font-size: 13px; color: var(--muted); }
+.summary-total .v { font-family: var(--ff-mono); font-size: 19px; font-weight: 600; color: var(--accent); }
+
+.summary-card .btn { width: 100%; margin-top: 6px; }
+
+.confirm-note { font-size: 11.5px; color: var(--dim); margin-top: 12px; line-height: 1.6; text-align: center; }
+
+/* confirmed state */
+.confirmed-wrap { display: none; text-align: center; padding: 60px 0 80px; }
+.confirmed-wrap.show { display: block; }
+.confirmed-icon {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: var(--accent-dim); border: 1px solid var(--accent-bdr);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent); margin: 0 auto 24px;
+}
+.confirmed-wrap h2 { font-size: 26px; margin-bottom: 10px; }
+.confirmed-wrap p { font-size: 14.5px; color: var(--muted); max-width: 420px; margin: 0 auto 28px; }
+.confirmed-detail {
+  display: inline-flex; flex-direction: column; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px 26px; margin-bottom: 28px; text-align: left;
+}
+.confirmed-detail-row { display: flex; gap: 24px; font-size: 13.5px; }
+.confirmed-detail-row .k { color: var(--dim); width: 90px; flex-shrink: 0; }
+.confirmed-actions { display: flex; gap: 12px; justify-content: center; }
+
+@media (max-width: 820px) {
+  .layout { grid-template-columns: 1fr; }
+  .summary-card { position: static; }
+  .tech-card { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+<script src="auth.js"></script>
+<script>DiagnosAuth.requireSignIn('book-technician.html');</script>
+
+<header id="topbar">
+  <div class="topbar-inner">
+    <div class="nav-logo">
+      <div class="nav-logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 22 22" fill="none"><path d="M2 11L6 11L8 5L11 17L14 8L16 11L20 11" stroke="#060E09" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      Diagnos
+    </div>
+    <a href="dashboard.html" class="exit-link">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M3 3L8 8M8 3L3 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      Back to dashboard
+    </a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div id="bookingView">
+    <div class="page-head">
+      <h1 class="display">Find someone who's seen this before.</h1>
+      <p>Technicians below are ranked by experience with your specific fault, not a generic star average.</p>
+    </div>
+
+    <div class="context-strip">
+      <span class="context-icon">🧊</span>
+      <span class="context-text">Diagnosis for your <strong>Kitchen Refrigerator</strong> — likely cause: <strong>Compressor Strain</strong></span>
+      <span class="context-conf">78% CONFIDENCE</span>
+    </div>
+
+    <div class="layout">
+      <div class="tech-col">
+
+        <div class="filter-row">
+          <button type="button" class="filter-chip active" data-filter="all">All technicians</button>
+          <button type="button" class="filter-chip" data-filter="match">Fault match</button>
+          <button type="button" class="filter-chip" data-filter="nearby">Nearby</button>
+          <button type="button" class="filter-chip" data-filter="rated">Top rated</button>
+        </div>
+
+        <div class="tech-list" id="techList">
+
+          <div class="tech-card" data-id="1" data-price="650" data-name="Rakesh Iyer" data-eta="Today, 2:00 PM">
+            <div class="tech-avatar">RI</div>
+            <div class="tech-info">
+              <div class="tech-top">
+                <div class="tech-name">Rakesh Iyer</div>
+                <div class="tech-price mono">₹650 visit</div>
+              </div>
+              <div class="tech-rating"><span class="stars">★★★★★</span> 4.9 · 212 jobs</div>
+              <div class="tech-tags">
+                <span class="tech-tag match">31 compressor jobs</span>
+                <span class="tech-tag">LG certified</span>
+              </div>
+              <div class="tech-meta">
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1.5C3.2 1.5 1.5 3.2 1.5 5.3c0 2.6 4 6.7 4 6.7s4-4.1 4-6.7C9.5 3.2 7.8 1.5 5.5 1.5Z" stroke="currentColor" stroke-width="1.1"/></svg>2.1 km away</span>
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.1"/><path d="M5.5 3V5.5L7 6.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>Available today</span>
+              </div>
+            </div>
+            <div class="tech-radio"><div class="tech-radio-dot"></div></div>
+          </div>
+
+          <div class="tech-card" data-id="2" data-price="500" data-name="Fathima Begum" data-eta="Tomorrow, 11:00 AM">
+            <div class="tech-avatar">FB</div>
+            <div class="tech-info">
+              <div class="tech-top">
+                <div class="tech-name">Fathima Begum</div>
+                <div class="tech-price mono">₹500 visit</div>
+              </div>
+              <div class="tech-rating"><span class="stars">★★★★★</span> 4.8 · 156 jobs</div>
+              <div class="tech-tags">
+                <span class="tech-tag match">18 compressor jobs</span>
+                <span class="tech-tag">All brands</span>
+              </div>
+              <div class="tech-meta">
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1.5C3.2 1.5 1.5 3.2 1.5 5.3c0 2.6 4 6.7 4 6.7s4-4.1 4-6.7C9.5 3.2 7.8 1.5 5.5 1.5Z" stroke="currentColor" stroke-width="1.1"/></svg>3.4 km away</span>
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.1"/><path d="M5.5 3V5.5L7 6.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>Available tomorrow</span>
+              </div>
+            </div>
+            <div class="tech-radio"><div class="tech-radio-dot"></div></div>
+          </div>
+
+          <div class="tech-card" data-id="3" data-price="450" data-name="Suresh Patil" data-eta="Today, 5:30 PM">
+            <div class="tech-avatar">SP</div>
+            <div class="tech-info">
+              <div class="tech-top">
+                <div class="tech-name">Suresh Patil</div>
+                <div class="tech-price mono">₹450 visit</div>
+              </div>
+              <div class="tech-rating"><span class="stars">★★★★☆</span> 4.6 · 89 jobs</div>
+              <div class="tech-tags">
+                <span class="tech-tag">General appliance</span>
+              </div>
+              <div class="tech-meta">
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1.5C3.2 1.5 1.5 3.2 1.5 5.3c0 2.6 4 6.7 4 6.7s4-4.1 4-6.7C9.5 3.2 7.8 1.5 5.5 1.5Z" stroke="currentColor" stroke-width="1.1"/></svg>1.2 km away</span>
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.1"/><path d="M5.5 3V5.5L7 6.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>Available today</span>
+              </div>
+            </div>
+            <div class="tech-radio"><div class="tech-radio-dot"></div></div>
+          </div>
+
+        </div>
+      </div>
+
+      <aside class="summary-card">
+        <div class="summary-title">Booking summary</div>
+
+        <div class="summary-row">
+          <span class="k">Appliance</span>
+          <span class="v">Kitchen Refrigerator</span>
+        </div>
+        <div class="summary-row">
+          <span class="k">Likely fault</span>
+          <span class="v">Compressor Strain</span>
+        </div>
+        <div class="summary-row">
+          <span class="k">Technician</span>
+          <span class="v" id="summaryTech">Not selected</span>
+        </div>
+
+        <div style="font-size:12px;color:var(--dim);margin:16px 0 0;font-family:var(--ff-mono);">PICK A SLOT</div>
+        <div class="slot-grid">
+          <button type="button" class="slot-btn" data-slot="Today, 2:00 PM">Today, 2:00 PM</button>
+          <button type="button" class="slot-btn" data-slot="Today, 5:30 PM">Today, 5:30 PM</button>
+          <button type="button" class="slot-btn" data-slot="Tomorrow, 11:00 AM">Tomorrow, 11:00 AM</button>
+          <button type="button" class="slot-btn" data-slot="Tomorrow, 3:00 PM">Tomorrow, 3:00 PM</button>
+        </div>
+
+        <div class="summary-total">
+          <span class="k">Visit charge</span>
+          <span class="v" id="summaryPrice">—</span>
+        </div>
+
+        <button type="button" class="btn btn-primary" id="confirmBtn" disabled>
+          Confirm booking
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 6.5H11M11 6.5L7.5 3M11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <p class="confirm-note">Visit charge is paid directly to the technician. Diagnos doesn't add a markup.</p>
+      </aside>
+    </div>
+  </div>
+
+  <div class="confirmed-wrap" id="confirmedView">
+    <div class="confirmed-icon">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><path d="M6 14.5L11.5 20L22 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h2 class="display">Booking confirmed.</h2>
+    <p>You'll get a reminder an hour before your technician arrives. They'll already have your diagnosis report.</p>
+
+    <div class="confirmed-detail">
+      <div class="confirmed-detail-row"><span class="k">Technician</span><span class="v" id="confTechName"></span></div>
+      <div class="confirmed-detail-row"><span class="k">Time</span><span class="v" id="confSlot"></span></div>
+      <div class="confirmed-detail-row"><span class="k">Appliance</span><span class="v">Kitchen Refrigerator</span></div>
+      <div class="confirmed-detail-row"><span class="k">Visit charge</span><span class="v" id="confPrice"></span></div>
+    </div>
+
+    <div class="confirmed-actions">
+      <a href="dashboard.html" class="btn btn-secondary">Back to dashboard</a>
+      <a href="diagnosis.html" class="btn btn-primary">Run another diagnosis</a>
+    </div>
+  </div>
+
+</main>
+
+<script>
+'use strict';
+
+let selectedTech = null;
+let selectedSlot = null;
+
+const techList = document.getElementById('techList');
+const summaryTech = document.getElementById('summaryTech');
+const summaryPrice = document.getElementById('summaryPrice');
+const confirmBtn = document.getElementById('confirmBtn');
+
+function updateConfirmState() {
+  confirmBtn.disabled = !(selectedTech && selectedSlot);
+}
+
+techList.querySelectorAll('.tech-card').forEach(card => {
+  card.addEventListener('click', () => {
+    techList.querySelectorAll('.tech-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedTech = {
+      name: card.dataset.name,
+      price: card.dataset.price
+    };
+    summaryTech.textContent = selectedTech.name;
+    summaryPrice.textContent = '₹' + selectedTech.price;
+    updateConfirmState();
+  });
+});
+
+document.querySelectorAll('.slot-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedSlot = btn.dataset.slot;
+    updateConfirmState();
+  });
+});
+
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    // Mock filter — in this demo all technicians remain visible regardless of filter.
+  });
+});
+
+confirmBtn.addEventListener('click', () => {
+  if (!selectedTech || !selectedSlot) return;
+  document.getElementById('confTechName').textContent = selectedTech.name;
+  document.getElementById('confSlot').textContent = selectedSlot;
+  document.getElementById('confPrice').textContent = '₹' + selectedTech.price;
+
+  document.getElementById('bookingView').style.display = 'none';
+  document.getElementById('confirmedView').classList.add('show');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+</script>
+
+</body>
+</html>

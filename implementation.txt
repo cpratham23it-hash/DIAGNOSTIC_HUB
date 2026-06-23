@@ -1,0 +1,143 @@
+0. Foundation — what every module sits on top of
+Before any module-specific logic, the backend needs these cross-cutting pieces, because every module below depends on them:
+Auth & sessions (what we just started)
+
+Email/password signup+signin (currently mocked — signup.html/signin.html fake-redirect on any valid input)
+Google OAuth (currently a dead button)
+Session/token issuance, so every other endpoint knows who is calling
+Real DB-backed user table: id, name, email, password_hash (nullable if Google-only), google_sub (nullable), created_at
+
+Database (PostgreSQL)
+
+Right now: nothing persists. Every "appliance," "diagnosis," "booking" you see in dashboard.html is hardcoded HTML.
+Needs real tables for: users, appliances, diagnoses, fault library, technicians, bookings, cost data. I'll lay these out per-module below, then you'll have one combined schema at the end.
+
+File storage (for diagnosis images/audio uploads)
+
+Currently: files picked in diagnosis.html never leave the browser — state.image/state.audio hold a File object that's discarded on page reload.
+Needs: an actual upload endpoint + storage (local disk to start, S3-style object storage later) + a row linking the stored file to a diagnosis record.
+
+I'll flag these as Module 0 in the final plan since literally everything else depends on them.
+
+Module 1 — Manual symptom checker
+What's mocked now: Nothing really exists yet for this specifically — the text box in diagnosis.html step 2 just stores raw text in state.symptomText and throws it into the same fake FAULT_DATA lookup as everything else. There's no actual "guided conversation," despite the homepage describing one ("A guided conversation that narrows down the fault from what you already know").
+What real functionality needs to exist:
+
+A decision-tree or follow-up-question engine: appliance → initial symptom → backend returns a follow-up question (or several) → person answers → backend narrows further → eventually returns candidate faults with confidence, without requiring image/audio at all.
+This is fundamentally different from the NLP module (Module 2's text path) — symptom checker is structured/guided (multiple-choice-ish), NLP is free-text parsing. Worth being explicit about that distinction since the homepage already implies both exist as separate things.
+
+Data model:
+
+symptom_questions table: appliance_type, question_text, parent_question_id (nullable, for tree structure), options (JSON)
+symptom_sessions table: tracks a person's in-progress walk through the tree (so they can resume, and so you have a record feeding back into "Diagnoses run" stats)
+
+Hard part flagged honestly: building the actual decision tree content (which question leads to which) is a knowledge-engineering task, not really an ML task — it's you (or a technician you interview) encoding real diagnostic logic. This is content work, not a model you train.
+
+Module 2 — Text/image/audio fault database
+This is really two things bundled under one name: (a) the input collection (what you've already built in the UI) and (b) the fault database itself (what the inputs get matched against). Let's split them.
+2a. Fault database (the reference data)
+
+Mocked now: FAULT_DATA object hardcoded in diagnosis.html JS — 5 appliances, each with one hardcoded "primary fault," fixed confidence numbers, and 2–3 fixed "other causes." This never changes regardless of input.
+Real functionality needed:
+
+A real faults table: appliance_type, fault_name, description, typical_symptoms (text/audio/image signatures), severity, typical_cost_range_min/max
+This is the ground truth library that Module 3's models classify against. Without this populated with real fault signatures (from datasets we discussed, or your own collected examples), Module 3 has nothing to predict.
+
+2b. Input collection (image/audio/text capture)
+
+Mocked now: fully built UI — drag-drop image, record-or-upload audio, free-text box — but nothing is sent anywhere. Removing a file just clears local JS state.
+Real functionality needed:
+
+POST /diagnoses — accepts appliance_id, optional image file, optional audio file, optional text, creates a diagnoses row, stores files, kicks off Module 3 processing (sync or async — flagging async as the right call once audio/image models are slow)
+Files need to land somewhere real (disk now, object storage later) with a row linking diagnosis_id → file_path, file_type
+
+Data model (diagnoses table):
+
+id, user_id, appliance_id, image_path (nullable), audio_path (nullable), symptom_text (nullable), status (pending/processing/done), created_at
+
+Module 3 — Diagnostic mechanism (the actual ML)
+Mocked now: A multi-second fake "analyzing" animation (runAnalysis() in diagnosis.html) that does nothing but wait on setTimeout, then returns the same hardcoded FAULT_DATA entry every single time regardless of what was uploaded. This is 100% theater right now — worth being blunt about, since it's easy to forget how fake it is once the UI looks convincing.
+Real functionality needed, broken into the three sub-models you specified:
+Sub-modelWhat it doesStatusImage classificationTakes uploaded photo → outputs fault probabilities (rust, leak, visible damage type)Not started — needs training data (we discussed MVTec/Roboflow as starting points, but real coverage requires your own appliance-specific images)Audio CNN/LSTMTakes recorded/uploaded audio → outputs fault probabilities (compressor strain, fan imbalance, etc.)Not started — MIMII/ToyADMOS2 are the strongest starting datasets we foundNLP symptom analysisTakes free text → maps to likely fault categoriesNot started — iFixit appliance corpus is the best starting point
+Fusion logic (the part nobody's discussed yet): when a person provides multiple inputs (image + audio + text, as the UI explicitly encourages), how do the three models' outputs combine into one ranked list with one confidence score? This needs an actual decision — e.g. weighted average, or a small ensemble/meta-model trained on top of the three sub-model outputs. This is a real design decision, not a footnote — your FAQ copy already promises "79% accuracy with both audio and image," which implies fusion logic that doesn't exist yet anywhere, including on paper.
+Realistic sequencing given solo dev + no model trained yet:
+
+Start with one model (you indicated audio-first earlier), get it returning real predictions for one appliance/fault set
+Stub the other two inputs to "not yet supported, ignored" rather than silently faking results
+Build fusion logic only once at least two real models exist — building fusion for hypothetical models is pure speculation
+
+
+Module 4 — Appliance performance analysis
+Mocked now: Dashboard shows static health pills ("NEEDS ATTENTION," "WATCH," "HEALTHY") and a hardcoded history table — none of it derived from anything, it's just markup.
+Real functionality needed:
+
+An appliances table per user: id, user_id, type, brand, model, age_installed_date
+A real health score derived from: diagnosis history (how many faults found, severity, recency), not invented per-card text
+Trend logic: "this fridge has had 2 compressor-related diagnoses in 3 months → escalate health status" — this is genuinely a rules-engine to start (not ML) since you don't have enough longitudinal data yet to train anything on degradation patterns
+
+Data model: ties directly to diagnoses table above — performance analysis is essentially an aggregation/query layer over diagnosis history, not a separate data source.
+
+Module 5 — Technician booking marketplace
+Mocked now: book-technician.html has 3 hardcoded technician cards, fixed prices, fixed slots — clicking "confirm" just swaps a div's visibility, nothing persisted, no real technician exists anywhere.
+Real functionality needed:
+
+technicians table: id, name, location (lat/long or service area), specialties (fault-type tags), rating, jobs_completed, price_per_visit
+bookings table: id, user_id, technician_id, diagnosis_id, scheduled_slot, status (pending/confirmed/completed/cancelled), price
+Matching logic: "rank technicians by experience with this specific fault" — promised explicitly in the UI copy ("ranked by experience with your specific fault, not a generic star average") — needs a real query joining technician specialties against the diagnosis's fault, not the current static "31 compressor jobs" hardcoded number
+Slot availability needs to be real (currently 4 hardcoded buttons, no calendar logic, no double-booking prevention)
+Two-sided marketplace problem flagged honestly: you need technicians to actually sign up and maintain availability — this is as much an operations/business problem as an engineering one, and no dataset solves it. This is the module where "build it and they'll come" is least likely to work without manual outreach to real technicians first.
+
+
+Module 6 — Cost estimation
+Mocked now: Fixed cost ranges per appliance/fault baked directly into FAULT_DATA (e.g. "₹2,800–₹4,500" for compressor strain, always, everywhere, regardless of region).
+Real functionality needed:
+
+cost_records table: fault_id, region, cost_low, cost_high, source, recorded_at
+Real regional variation — right now every single result hardcodes "MUMBAI, MAHARASHTRA" regardless of where the person actually is
+As flagged before: no public dataset exists for Indian appliance repair costs. The only durable path is your own booking transaction data feeding this table over time — meaning this module is necessarily the last one to become real, since it depends on Module 5 actually running real bookings first
+
+Step-by-step breakdown
+Step 1 — Project scaffolding & config
+
+FastAPI app structure (app/, main.py, routers folder, models folder)
+.env handling for secrets (DB URL, session secret, Google client ID — already started)
+Dependency file, .gitignore so .env and __pycache__ never get committed
+Goal: uvicorn app.main:app runs and serves a /healthz route. Nothing real yet, just confirms the skeleton works.
+
+Step 2 — Database connection & ORM setup
+
+PostgreSQL connection via SQLAlchemy (or similar)
+A database.py with session handling
+Alembic (or equivalent) for migrations, set up now even though there's only one table at first — retrofitting migrations later onto a live DB is painful
+Goal: app starts, connects to a local Postgres instance, runs one trivial migration successfully
+
+Step 3 — Users table + password-based signup/signin
+
+users table: id, name, email, password_hash, created_at
+Password hashing (bcrypt/argon2 — never plain text)
+POST /auth/signup, POST /auth/signin endpoints
+Goal: replace the fake signup.html/signin.html redirect with real account creation and real credential checking
+
+Step 4 — Session/token issuance + auth middleware
+
+Real JWT (swap the manual HMAC placeholder from earlier for a proper JWT library)
+A dependency/middleware that protects routes (get_current_user)
+Goal: any endpoint can require "must be signed in," and reject with 401 if not
+
+Step 5 — Google OAuth integration
+
+Wire in the /auth/google endpoint we already drafted, now sitting on the real users table instead of the placeholder dict
+Decide: does a Google sign-in create a new user row automatically, or require linking to an existing email? (Recommend: auto-create, since that's what "Continue with Google" implies to a user)
+Goal: "Continue with Google" button actually works end-to-end
+
+Step 6 — Frontend auth integration
+
+Replace auth.js's localStorage-only mock with real API calls (fetch to signup/signin/google endpoints), storing the real JWT instead of a '1' flag
+Update signin.html, signup.html, dashboard.html, diagnosis.html, book-technician.html guards to check the real token, not the mock flag
+Goal: everything we built two turns ago (the redirect-to-sign-in flow) still works, but now backed by real accounts
+
+Step 7 — File storage setup
+
+Local disk storage to start (/uploads/{user_id}/{file_id}), structured so swapping to S3-style object storage later is a config change, not a rewrite
+A generic POST /files upload endpoint with size/type validation
+Goal: a file can be uploaded and retrieved by ID — this is what Module 2b will plug into next
