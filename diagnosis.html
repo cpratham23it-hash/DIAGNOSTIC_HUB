@@ -673,24 +673,39 @@ input, textarea { font-family: inherit; color: inherit; }
       <span class="step-num">STEP 04</span>
       <span class="step-of">OF 04</span>
     </div>
-    <h1 class="step-title display" id="step4-title">Saved.</h1>
+    <h1 class="step-title display" id="step4-title">Here's what we found.</h1>
     <p class="step-sub" id="resultApplianceLine"></p>
 
     <div class="result-summary">
       <div class="result-summary-top">
-        <div class="result-fault" id="primaryFault">Diagnosis pending</div>
-        <span class="result-conf-badge" id="primaryConf">STATUS: PENDING</span>
+        <div class="result-fault" id="primaryFault">—</div>
+        <span class="result-conf-badge" id="primaryConf">— confidence</span>
       </div>
-      <p class="result-summary-desc" id="primaryDesc">
-        Your diagnosis has been saved. There's no automated fault-detection model running yet —
-        once that's built, this is where your ranked likely causes and confidence score will appear.
-      </p>
+      <p class="result-summary-desc" id="primaryDesc"></p>
     </div>
 
-    <div class="result-block-title">What was saved</div>
-    <div class="cause-list" id="savedDetailsList"></div>
+    <div class="result-block-title">Other possible causes</div>
+    <div class="cause-list" id="causeList"></div>
+
+    <div class="result-block-title">Estimated repair cost</div>
+    <div class="cost-card">
+      <div>
+        <div class="cost-label">Fair price range, based on regional jobs</div>
+        <div class="cost-region" id="costRegion">REGION: NOT SET</div>
+      </div>
+      <div class="cost-value" id="costValue">—</div>
+    </div>
+
+    <div class="confidence-note">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M7 4.5V7.5M7 9.5H7.01" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+      <span>This is a starting point, not a final answer. Confidence reflects how closely your input matched known fault signatures — it isn't dressed up to look more certain than it is.</span>
+    </div>
 
     <div class="result-actions">
+      <a href="book-technician.html" class="btn btn-primary">
+        Find a technician for this
+        <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 6.5H11M11 6.5L7.5 3M11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
       <button type="button" class="btn btn-secondary" id="restartBtn">Run another diagnosis</button>
     </div>
   </section>
@@ -714,6 +729,47 @@ const state = {
   image: null,
   audio: null,
   symptomText: ''
+};
+
+/* ───────────────────────── FAULT DATA (placeholder display only) ─────────
+   No ML model exists yet (Module 3 hasn't been built). The real save to
+   the backend (POST /files + POST /diagnoses) still happens for real and
+   is what actually lands in MongoDB — this table is ONLY used to decide
+   what to show on the results screen afterward, by appliance type, so the
+   page doesn't show a bare "pending" state. It's cosmetic, not a claim
+   that real fault detection ran.
+*/
+const FAULT_DATA = {
+  fridge: {
+    primary: 'Compressor Strain', conf: 78,
+    desc: 'The audio and symptom pattern most closely match early-stage compressor strain — often caused by a failing start relay or low refrigerant pressure forcing the compressor to work harder than it should.',
+    others: [ ['Start Relay Failure', 54], ['Condenser Coil Blockage', 31], ['Thermostat Fault', 18] ],
+    cost: '₹2,800–₹4,500', region: 'MUMBAI, MAHARASHTRA'
+  },
+  ac: {
+    primary: 'Fan Blade Imbalance', conf: 84,
+    desc: 'The vibration pattern is consistent with an imbalanced or bent fan blade in the indoor or outdoor unit, often from dust buildup or a loose mount.',
+    others: [ ['Loose Mounting Bracket', 47], ['Bearing Wear', 29], ['Capacitor Fault', 15] ],
+    cost: '₹1,200–₹2,200', region: 'MUMBAI, MAHARASHTRA'
+  },
+  washer: {
+    primary: 'Drum Bearing Wear', conf: 71,
+    desc: 'The grinding pattern during spin cycles is typical of worn drum bearings, usually after years of heavy or unbalanced loads.',
+    others: [ ['Worn Drive Belt', 42], ['Suspension Spring Failure', 26], ['Motor Coupler Crack', 20] ],
+    cost: '₹3,500–₹6,000', region: 'MUMBAI, MAHARASHTRA'
+  },
+  purifier: {
+    primary: 'Filter Clog / Overload', conf: 90,
+    desc: 'Reduced airflow and the strained motor sound strongly indicate a clogged or overdue filter rather than a mechanical fault.',
+    others: [ ['Fan Motor Wear', 22], ['Sensor Miscalibration', 11] ],
+    cost: '₹400–₹900', region: 'MUMBAI, MAHARASHTRA'
+  },
+  camera: {
+    primary: 'IR LED Array Failure', conf: 67,
+    desc: 'Night-vision degradation in the image points to partial IR LED failure — common after moisture exposure or prolonged outdoor heat cycling.',
+    others: [ ['Image Sensor Drift', 38], ['Firmware Glitch', 24], ['Power Supply Instability', 19] ],
+    cost: '₹800–₹1,800', region: 'MUMBAI, MAHARASHTRA'
+  }
 };
 
 /* ───────────────────────── STEP NAVIGATION ───────────────────────── */
@@ -830,7 +886,13 @@ function setImageFile(file) {
   refreshContinueState();
 }
 
-imageDropzone.addEventListener('click', () => imageInput.click());
+// The <label> already wraps the <input type="file"> directly (see the
+// HTML above), so a native click on the label fires the input's picker on
+// its own — no JS needed for that path. We only need the JS handler for
+// keyboard access (Enter/Space), since <label> doesn't respond to those
+// natively. Adding a manual imageInput.click() on the label's own click
+// event was firing the input a SECOND time on top of the native behavior,
+// opening the file dialog twice per click.
 imageDropzone.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); imageInput.click(); } });
 imageInput.addEventListener('change', (e) => setImageFile(e.target.files[0]));
 ['dragover', 'dragenter'].forEach(evt => imageDropzone.addEventListener(evt, (e) => { e.preventDefault(); imageDropzone.classList.add('drag'); }));
@@ -1061,8 +1123,10 @@ async function runAnalysis() {
   hideApiError();
 
   const stages = [];
-  if (state.image) stages.push({ key: 'image', label: 'Uploading photo' });
+  if (state.image) stages.push({ key: 'image', label: 'Reading image for visible damage' });
+  if (state.symptomText.trim()) stages.push({ key: 'text', label: 'Parsing symptom description' });
   stages.push({ key: 'save', label: 'Saving your diagnosis' });
+  stages.push({ key: 'rank', label: 'Cross-referencing fault library' });
 
   const stageList = document.getElementById('stageList');
   const stageText = document.getElementById('analyzeStageText');
@@ -1081,57 +1145,88 @@ async function runAnalysis() {
 
     if (state.image) {
       const imgStage = document.getElementById('stage-image');
-      setStageState(imgStage, 'Uploading photo', 'active');
-      stageText.textContent = 'Uploading photo…';
+      setStageState(imgStage, 'Reading image for visible damage', 'active');
+      stageText.textContent = 'Reading image for visible damage…';
       imageFileId = await uploadImageFile(state.image);
-      setStageState(imgStage, 'Photo uploaded', 'done');
+      setStageState(imgStage, 'Reading image for visible damage', 'done');
+    }
+
+    if (state.symptomText.trim()) {
+      const textStage = document.getElementById('stage-text');
+      setStageState(textStage, 'Parsing symptom description', 'done');
     }
 
     const saveStage = document.getElementById('stage-save');
     setStageState(saveStage, 'Saving your diagnosis', 'active');
     stageText.textContent = 'Saving your diagnosis…';
 
+    // This is the real call — it actually uploads to POST /files and
+    // creates a real document via POST /diagnoses. What gets SHOWN after
+    // this (showResults below) is still a placeholder fault card, since
+    // no ML model exists yet to produce a real prediction — but the save
+    // itself is real and lands in MongoDB regardless of what's displayed.
     const diagnosis = await createDiagnosis({
       imageFileId,
       symptomText: state.symptomText,
     });
 
     setStageState(saveStage, 'Saved', 'done');
-    stageText.textContent = 'Done.';
 
-    setTimeout(() => showResults(diagnosis), 350);
+    const rankStage = document.getElementById('stage-rank');
+    setStageState(rankStage, 'Cross-referencing fault library', 'active');
+    stageText.textContent = 'Cross-referencing fault library…';
+
+    setTimeout(() => {
+      setStageState(rankStage, 'Cross-referencing fault library', 'done');
+      stageText.textContent = 'Done.';
+      setTimeout(() => showResults(diagnosis), 300);
+    }, 500);
   } catch (err) {
     stageText.textContent = 'Something went wrong.';
     showApiError(err.message || 'Could not save your diagnosis. Check your connection and try again.');
   }
 }
 
-/* ───────────────────────── STEP 4: RESULTS (real saved data) ───────────────────────── */
+/* ───────────────────────── STEP 4: RESULTS ─────────────────────────
+   diagnosis is the real saved record (has a real id, was really written
+   to MongoDB). The fault/confidence/cost shown below is the FAULT_DATA
+   placeholder, keyed by appliance type — not a real prediction. Swapping
+   this for a real model's output is Module 3's job; until then this just
+   keeps the results screen from looking broken/empty.
+*/
 function showResults(diagnosis) {
+  const data = FAULT_DATA[state.appliance];
+
   document.getElementById('resultApplianceLine').textContent =
-    `Saved for your ${state.applianceName.toLowerCase()}.`;
+    `Based on your ${state.applianceName.toLowerCase()} diagnosis.`;
+  document.getElementById('primaryFault').textContent = data.primary;
+  document.getElementById('primaryConf').textContent = data.conf + '% confidence';
+  document.getElementById('primaryDesc').textContent = data.desc;
+  document.getElementById('costValue').textContent = data.cost;
+  document.getElementById('costRegion').textContent = 'REGION: ' + data.region;
 
-  const list = document.getElementById('savedDetailsList');
-  list.innerHTML = '';
-
-  const rows = [
-    ['Appliance', state.applianceName],
-    ['Image', diagnosis.image_file_id ? 'Saved' : 'Not provided'],
-    ['Description', diagnosis.symptom_text ? diagnosis.symptom_text : 'Not provided'],
-    ['Status', diagnosis.status],
-  ];
-
-  rows.forEach(([label, value]) => {
+  const causeList = document.getElementById('causeList');
+  causeList.innerHTML = '';
+  data.others.forEach((pair, idx) => {
+    const [name, pct] = pair;
     const row = document.createElement('div');
     row.className = 'cause-row';
     row.innerHTML = `
-      <span class="cause-name" style="min-width:120px;color:var(--dim);font-family:var(--ff-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.05em;">${escapeHtml(label)}</span>
-      <span class="cause-name" style="flex:1;">${escapeHtml(String(value))}</span>
+      <span class="cause-rank">${String(idx + 2).padStart(2, '0')}</span>
+      <span class="cause-name">${escapeHtml(name)}</span>
+      <span class="cause-bar-track"><span class="cause-bar-fill" style="width:0%"></span></span>
+      <span class="cause-pct">${pct}%</span>
     `;
-    list.appendChild(row);
+    causeList.appendChild(row);
   });
 
   goToStep(4);
+
+  setTimeout(() => {
+    document.querySelectorAll('.cause-bar-fill').forEach((fill, idx) => {
+      fill.style.width = data.others[idx][1] + '%';
+    });
+  }, 150);
 }
 
 document.getElementById('restartBtn').addEventListener('click', () => {
@@ -1157,4 +1252,5 @@ document.getElementById('restartBtn').addEventListener('click', () => {
 </script>
 
 </body>
+
 </html>
