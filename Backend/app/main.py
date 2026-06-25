@@ -9,6 +9,7 @@ Routers are added here as they're built in later steps:
   - auth       (Steps 3-5)
   - files      (Module 0 — generic upload/download)
   - diagnoses  (Module 2b — input collection)
+  - faults     (Module 2a — fault reference database)
   - appliances, technicians, etc. (later modules)
 """
 
@@ -19,7 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import connect_to_mongo, close_mongo_connection
-from app.routers import auth, diagnoses, files, system
+from app.routers import auth, diagnoses, faults, files, system
 
 
 @asynccontextmanager
@@ -49,3 +50,4 @@ app.include_router(system.router)
 app.include_router(auth.router)
 app.include_router(files.router)
 app.include_router(diagnoses.router)
+app.include_router(faults.router)
