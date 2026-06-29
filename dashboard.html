@@ -364,10 +364,6 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
         <svg viewBox="0 0 24 24" fill="none"><path d="M9 12L11 14L15.5 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/></svg>
         New diagnosis
       </a>
-      <a href="symptom-checker.html" class="sb-link">
-        <svg viewBox="0 0 24 24" fill="none"><path d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.97-4.03 9-9 9-1.5 0-2.91-.37-4.15-1.02L3 21l1.05-3.5C3.38 16.2 3 14.65 3 13c0-4.97 4.03-9 9-9s9 4.03 9 9Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Symptom checker
-      </a>
       <span class="sb-link disabled" aria-disabled="true">
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5a2 2 0 0 1 2-2h8l6 6v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" stroke="currentColor" stroke-width="1.6"/><path d="M14 3v6h6" stroke="currentColor" stroke-width="1.6"/></svg>
         History
@@ -417,8 +413,8 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
 
     <div class="page-head">
       <div>
-        <h1 class="display">Welcome back, Priya.</h1>
-        <p>3 appliances tracked · 1 needs attention</p>
+        <h1 class="display" id="dashGreeting">Welcome back.</h1>
+        <p id="dashSubline">Loading your activity…</p>
       </div>
       <a href="diagnosis.html" class="btn btn-primary">
         Run a new diagnosis
@@ -433,7 +429,7 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 7L9.5 4H14.5L16 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           </div>
         </div>
-        <div class="stat-num mono">3</div>
+        <div class="stat-num mono" id="statAppliances">—</div>
         <div class="stat-label">Appliances tracked</div>
       </div>
       <div class="stat-card">
@@ -442,7 +438,7 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 12L11 14L15.5 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/></svg>
           </div>
         </div>
-        <div class="stat-num mono">7</div>
+        <div class="stat-num mono" id="statDiagnoses">—</div>
         <div class="stat-label">Diagnoses run</div>
       </div>
       <div class="stat-card">
@@ -451,7 +447,7 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 7v10l8 5 8-5V7l-8-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
           </div>
         </div>
-        <div class="stat-num mono">₹5,200</div>
+        <div class="stat-num mono" id="statSaved" style="font-size:16px;">Not tracked yet</div>
         <div class="stat-label">Estimated saved vs. quoted</div>
       </div>
       <div class="stat-card">
@@ -460,111 +456,43 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 20c0-3.5 3-6 7.5-6s7.5 2.5 7.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
           </div>
         </div>
-        <div class="stat-num mono">1</div>
+        <div class="stat-num mono" id="statBooked">—</div>
         <div class="stat-label">Technician booked</div>
       </div>
     </div>
 
     <div class="section-row">
       <h2>Your appliances</h2>
-      <a href="#" class="section-link">View all</a>
     </div>
-    <div class="appliance-grid">
-
-      <div class="appliance-card" data-link="diagnosis.html">
-        <div class="appliance-card-top">
-          <span class="appliance-icon">🧊</span>
-          <span class="health-pill health-attn">NEEDS ATTENTION</span>
-        </div>
-        <div class="appliance-name">Kitchen Refrigerator</div>
-        <div class="appliance-meta">LG · Double Door · 4 yrs old</div>
-        <div class="appliance-last">
-          <span>Last result</span>
-          <strong>Compressor Strain · 78%</strong>
-        </div>
+    <div class="appliance-grid" id="applianceGrid">
+      <!-- Appliance tracking (Module 4) doesn't exist yet, so this always
+           shows the empty state below until that module is built — never
+           fake cards. -->
+      <div style="grid-column:1/-1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;color:var(--muted);font-size:13.5px;">
+        Appliance tracking isn't built yet — this will show your devices and their health once it is.
       </div>
-
-      <div class="appliance-card" data-link="diagnosis.html">
-        <div class="appliance-card-top">
-          <span class="appliance-icon">❄️</span>
-          <span class="health-pill health-watch">WATCH</span>
-        </div>
-        <div class="appliance-name">Bedroom AC</div>
-        <div class="appliance-meta">Daikin · Split · 2 yrs old</div>
-        <div class="appliance-last">
-          <span>Last result</span>
-          <strong>Fan Blade Imbalance · 84%</strong>
-        </div>
-      </div>
-
-      <div class="appliance-card" data-link="diagnosis.html">
-        <div class="appliance-card-top">
-          <span class="appliance-icon">🫧</span>
-          <span class="health-pill health-good">HEALTHY</span>
-        </div>
-        <div class="appliance-name">Washing Machine</div>
-        <div class="appliance-meta">IFB · Front Load · 1 yr old</div>
-        <div class="appliance-last">
-          <span>Last result</span>
-          <strong>No fault detected</strong>
-        </div>
-      </div>
-
       <a href="diagnosis.html" class="add-appliance-card" style="text-decoration:none;">
         <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 4V18M4 11H18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <span>Add an appliance</span>
+        <span>Run a diagnosis</span>
       </a>
-
     </div>
 
     <div class="section-row">
-      <h2>Recent diagnoses</h2>
-      <a href="#" class="section-link">View all</a>
+      <h2>Recent activity</h2>
     </div>
 
-    <div class="history-table">
+    <div class="history-table" id="historyTable">
       <div class="history-row head">
         <span>Appliance</span>
-        <span>Likely fault</span>
+        <span>Result</span>
         <span>Confidence</span>
         <span>Date</span>
         <span>Status</span>
       </div>
-
-      <div class="history-row">
-        <span class="hist-appliance">🧊 Kitchen Refrigerator</span>
-        <span class="hist-fault">Compressor Strain</span>
-        <span class="hist-conf">78%</span>
-        <span class="hist-date">18 JUN 2026</span>
-        <span class="hist-status status-open">OPEN</span>
-      </div>
-      <div class="history-row">
-        <span class="hist-appliance">❄️ Bedroom AC</span>
-        <span class="hist-fault">Fan Blade Imbalance</span>
-        <span class="hist-conf">84%</span>
-        <span class="hist-date">14 JUN 2026</span>
-        <span class="hist-status status-booked">TECHNICIAN BOOKED</span>
-      </div>
-      <div class="history-row">
-        <span class="hist-appliance">🫧 Washing Machine</span>
-        <span class="hist-fault">No fault detected</span>
-        <span class="hist-conf">—</span>
-        <span class="hist-date">02 JUN 2026</span>
-        <span class="hist-status status-resolved">RESOLVED</span>
-      </div>
-      <div class="history-row">
-        <span class="hist-appliance">🧊 Kitchen Refrigerator</span>
-        <span class="hist-fault">Start Relay Failure</span>
-        <span class="hist-conf">61%</span>
-        <span class="hist-date">29 MAY 2026</span>
-        <span class="hist-status status-resolved">RESOLVED</span>
-      </div>
-      <div class="history-row">
-        <span class="hist-appliance">❄️ Bedroom AC</span>
-        <span class="hist-fault">Capacitor Fault</span>
-        <span class="hist-conf">55%</span>
-        <span class="hist-date">11 MAY 2026</span>
-        <span class="hist-status status-resolved">RESOLVED</span>
+      <div id="historyRows">
+        <div class="history-row">
+          <span style="color:var(--dim);">Loading…</span>
+        </div>
       </div>
     </div>
 
@@ -574,9 +502,20 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
 
 <script>
 'use strict';
-document.querySelectorAll('.appliance-card[data-link]').forEach(card => {
-  card.addEventListener('click', () => { window.location.href = card.dataset.link; });
-});
+
+const API_BASE = 'http://127.0.0.1:8000';
+
+const APPLIANCE_META = {
+  fridge:   { icon: '🧊', name: 'Refrigerator' },
+  ac:       { icon: '❄️', name: 'Air Conditioner' },
+  washer:   { icon: '🫧', name: 'Washing Machine' },
+  purifier: { icon: '💨', name: 'Air Purifier' },
+  camera:   { icon: '📷', name: 'Security Camera' },
+};
+
+function applianceLabel(type) {
+  return APPLIANCE_META[type] || { icon: '🔧', name: type };
+}
 
 // Account menu dropdown
 const userMenuBtn = document.getElementById('userMenuBtn');
@@ -608,9 +547,21 @@ document.getElementById('signOutBtn').addEventListener('click', () => {
   window.location.href = 'index.html';
 });
 
-// Populate the sidebar with the actual signed-in user (requireSignIn above
-// already guarantees we have a token; this just reads the cached user info
-// saved at sign-in time, so no extra API call is needed here).
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatDate(isoString) {
+  const d = new Date(isoString);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+}
+
+// Populate the sidebar AND the header greeting with the real signed-in
+// user (requireSignIn above already guarantees we have a token; this
+// reads the cached user info saved at sign-in time, so no extra API call
+// is needed just for the name).
 (function populateUserInfo() {
   const user = DiagnosAuth.getUser();
   if (!user) return;
@@ -623,7 +574,126 @@ document.getElementById('signOutBtn').addEventListener('click', () => {
   document.getElementById('sbAvatar').textContent = initials || '?';
   document.getElementById('sbUserName').textContent = user.name || 'Account';
   document.getElementById('sbUserEmail').textContent = user.email || '';
+
+  const firstName = (user.name || '').split(' ')[0] || 'there';
+  document.getElementById('dashGreeting').textContent = `Welcome back, ${firstName}.`;
 })();
+
+/* ─── REAL DASHBOARD DATA ───────────────────────────────────────────
+   Pulls from the two real sources that actually exist right now:
+   GET /diagnoses and GET /symptom-sessions. Appliance tracking (Module 4)
+   and technician bookings (Module 5) don't exist yet, so those stats
+   stay at an honest 0 / "not tracked yet" rather than showing anything
+   invented.
+*/
+async function loadDashboardData() {
+  const subline = document.getElementById('dashSubline');
+  const historyRows = document.getElementById('historyRows');
+
+  try {
+    const [diagRes, symRes] = await Promise.all([
+      DiagnosAuth.authFetch(`${API_BASE}/diagnoses`),
+      DiagnosAuth.authFetch(`${API_BASE}/symptom-sessions`),
+    ]);
+
+    if (!diagRes.ok || !symRes.ok) {
+      throw new Error('Could not load your activity right now.');
+    }
+
+    const diagnoses = await diagRes.json();
+    const sessions = await symRes.json();
+
+    // Stats
+    document.getElementById('statAppliances').textContent = '0';
+    document.getElementById('statDiagnoses').textContent = diagnoses.length + sessions.length;
+    document.getElementById('statBooked').textContent = '0';
+
+    subline.textContent = (diagnoses.length + sessions.length) > 0
+      ? `${diagnoses.length + sessions.length} diagnoses run so far.`
+      : `No diagnoses run yet — try one below.`;
+
+    // Merge diagnoses + symptom sessions into one activity feed
+    const combined = [];
+
+    diagnoses.forEach((d) => {
+      const meta = applianceLabel(d.appliance_type);
+      let resultLabel = 'Pending';
+      let confLabel = '—';
+      if (d.primary_fault) {
+        resultLabel = d.primary_fault.fault_name;
+        confLabel = `${d.primary_fault.confidence}%`;
+      } else if (d.status === 'pending') {
+        resultLabel = 'Awaiting analysis';
+      }
+      combined.push({
+        icon: meta.icon,
+        name: meta.name,
+        result: resultLabel,
+        confidence: confLabel,
+        date: d.created_at,
+        status: d.status,
+        statusLabel: d.status.toUpperCase(),
+      });
+    });
+
+    sessions.forEach((s) => {
+      const meta = applianceLabel(s.appliance_type);
+      let resultLabel = 'In progress';
+      let confLabel = '—';
+      if (s.status === 'completed' && s.result && s.result.length > 0) {
+        resultLabel = s.result[0].fault_name;
+        confLabel = `${s.result[0].confidence}%`;
+      }
+      combined.push({
+        icon: meta.icon,
+        name: meta.name,
+        result: resultLabel,
+        confidence: confLabel,
+        date: s.updated_at,
+        status: s.status,
+        statusLabel: s.status === 'completed' ? 'COMPLETED' : 'IN PROGRESS',
+      });
+    });
+
+    combined.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (combined.length === 0) {
+      historyRows.innerHTML = `
+        <div class="history-row">
+          <span style="color:var(--dim);grid-column:1/-1;">Nothing yet — run a diagnosis or try the symptom checker to see activity here.</span>
+        </div>
+      `;
+      return;
+    }
+
+    historyRows.innerHTML = '';
+    combined.forEach((item) => {
+      const row = document.createElement('div');
+      row.className = 'history-row';
+      row.innerHTML = `
+        <span class="hist-appliance">${item.icon} ${escapeHtml(item.name)}</span>
+        <span class="hist-fault">${escapeHtml(item.result)}</span>
+        <span class="hist-conf">${escapeHtml(item.confidence)}</span>
+        <span class="hist-date">${formatDate(item.date)}</span>
+        <span class="hist-status status-open">${escapeHtml(item.statusLabel)}</span>
+      `;
+      historyRows.appendChild(row);
+    });
+
+  } catch (err) {
+    subline.textContent = 'Could not load your activity.';
+    document.getElementById('statAppliances').textContent = '—';
+    document.getElementById('statDiagnoses').textContent = '—';
+    document.getElementById('statBooked').textContent = '—';
+    historyRows.innerHTML = `
+      <div class="history-row">
+        <span style="color:var(--red);grid-column:1/-1;">${escapeHtml(err.message || 'Something went wrong loading your activity.')}</span>
+      </div>
+    `;
+  }
+}
+
+loadDashboardData();
 </script>
 
 </body>
