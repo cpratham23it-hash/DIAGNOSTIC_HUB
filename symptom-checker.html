@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Symptom checker — Diagnos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0C0C0E;
+  --surface:   #111114;
+  --surface-2: #18181C;
+  --border:    rgba(255,255,255,0.07);
+  --border-2:  rgba(255,255,255,0.12);
+
+  --text:      #EDEDF0;
+  --muted:     #8A8A96;
+  --dim:       #4A4A56;
+
+  --accent:    #00E5A0;
+  --accent-dim:#00E5A014;
+  --accent-bdr:#00E5A030;
+
+  --red:       #FF5757;
+  --red-dim:   #FF575714;
+  --yellow:    #F5C842;
+
+  --ff-display: 'Syne', sans-serif;
+  --ff-body:    'Inter', sans-serif;
+  --ff-mono:    'JetBrains Mono', monospace;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ff-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; font-family: inherit; border: none; background: none; }
+ul, ol { list-style: none; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+.display { font-family: var(--ff-display); font-weight: 800; letter-spacing: -0.03em; line-height: 1.0; }
+.label { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 22px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  transition: all 0.18s ease; white-space: nowrap;
+}
+.btn svg { flex-shrink: 0; transition: transform 0.18s ease; }
+.btn:hover svg { transform: translateX(2px); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-primary { background: var(--accent); color: #060E09; }
+.btn-primary:hover:not(:disabled) { background: #19FFAD; transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,229,160,0.28); }
+.btn-secondary { background: transparent; color: var(--muted); border: 1px solid var(--border-2); }
+.btn-secondary:hover { color: var(--text); border-color: rgba(255,255,255,0.22); }
+
+/* ─── TOP BAR ──────────────────────────────────────────────── */
+#topbar {
+  position: sticky; top: 0; z-index: 50; height: 64px;
+  display: flex; align-items: center;
+  background: rgba(12,12,14,0.88); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-inner {
+  width: 100%; max-width: 760px; margin: 0 auto; padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.nav-logo {
+  display: flex; align-items: center; gap: 9px;
+  font-family: var(--ff-display); font-size: 16px; font-weight: 700; letter-spacing: -0.02em;
+}
+.nav-logo-mark { width: 26px; height: 26px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+.nav-logo-mark svg { width: 15px; height: 15px; }
+.exit-link { font-size: 13.5px; color: var(--dim); display: flex; align-items: center; gap: 6px; transition: color 0.15s ease; }
+.exit-link:hover { color: var(--muted); }
+
+/* ─── HEAD ─────────────────────────────────────────────────── */
+.page-head { padding: 40px 0 0; }
+.page-head h1 { font-size: clamp(26px, 3.4vw, 36px); margin-bottom: 8px; }
+.page-head p { font-size: 15px; color: var(--muted); max-width: 540px; margin-bottom: 36px; }
+
+/* ─── APPLIANCE GRID (reused pattern from diagnosis.html) ───── */
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.app-pick {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 28px 18px 22px;
+  text-align: center;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+.app-pick:hover { border-color: var(--border-2); background: var(--surface-2); transform: translateY(-2px); }
+.app-pick-icon { font-size: 30px; display: block; margin-bottom: 10px; }
+.app-pick-name { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+.app-pick-sub { font-family: var(--ff-mono); font-size: 10.5px; color: var(--dim); }
+
+/* ─── QUESTION CARD ────────────────────────────────────────── */
+.question-wrap { display: none; padding: 8px 0 80px; }
+.question-wrap.active { display: block; animation: qIn 0.4s var(--ease); }
+@keyframes qIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.progress-trail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 28px;
+}
+.trail-chip {
+  font-family: var(--ff-mono);
+  font-size: 11px;
+  padding: 5px 11px;
+  border-radius: 100px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.trail-chip strong { color: var(--text); font-weight: 500; }
+
+.q-card {
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: 14px;
+  padding: 32px;
+  margin-bottom: 16px;
+}
+.q-text {
+  font-family: var(--ff-display);
+  font-size: clamp(21px, 2.6vw, 26px);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  margin-bottom: 24px;
+}
+
+.option-list { display: flex; flex-direction: column; gap: 10px; }
+.option-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--border-2);
+  border-radius: 10px;
+  padding: 16px 18px;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--text);
+  transition: all 0.15s ease;
+}
+.option-btn:hover:not(:disabled) { border-color: var(--accent-bdr); background: var(--accent-dim); }
+.option-btn:disabled { opacity: 0.4; cursor: default; }
+.option-btn svg { flex-shrink: 0; color: var(--dim); transition: transform 0.15s ease, color 0.15s ease; }
+.option-btn:hover:not(:disabled) svg { transform: translateX(2px); color: var(--accent); }
+
+.q-loading {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--ff-mono); font-size: 13px; color: var(--muted);
+  padding: 8px 0;
+}
+.q-loading .spin {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── RESULT CARD ──────────────────────────────────────────── */
+.result-card {
+  background: var(--surface);
+  border: 1px solid var(--accent-bdr);
+  border-radius: 14px;
+  padding: 32px;
+}
+.result-head { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 16px; }
+.result-fault-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 9px; margin-bottom: 10px;
+}
+.result-fault-name { font-size: 15px; font-weight: 600; }
+.result-fault-conf { font-family: var(--ff-mono); font-size: 13px; color: var(--accent); }
+
+.result-note {
+  display: flex; gap: 10px; align-items: flex-start;
+  font-size: 12.5px; color: var(--dim); margin-top: 20px; line-height: 1.6;
+}
+.result-note svg { flex-shrink: 0; margin-top: 2px; }
+
+/* ─── DEAD-END CARD ────────────────────────────────────────── */
+.deadend-card {
+  background: var(--surface);
+  border: 1px solid rgba(245,200,66,0.25);
+  border-radius: 14px;
+  padding: 32px;
+}
+.deadend-head { font-family: var(--ff-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--yellow); margin-bottom: 12px; }
+.deadend-card p { font-size: 14.5px; color: var(--muted); line-height: 1.65; margin-bottom: 8px; }
+
+.error-banner {
+  display: none;
+  background: var(--red-dim);
+  border: 1px solid rgba(255,87,87,0.25);
+  color: #FF8787;
+  font-size: 13px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+.error-banner.show { display: block; }
+
+.foot-actions { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; }
+
+@media (max-width: 640px) {
+  .app-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<script src="auth.js"></script>
+<script>DiagnosAuth.requireSignIn('symptom-checker.html');</script>
+
+<header id="topbar">
+  <div class="topbar-inner">
+    <div class="nav-logo">
+      <div class="nav-logo-mark" aria-hidden="true">
+        <svg viewBox="0 0 22 22" fill="none"><path d="M2 11L6 11L8 5L11 17L14 8L16 11L20 11" stroke="#060E09" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      Diagnos
+    </div>
+    <a href="dashboard.html" class="exit-link">
+      <svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M3 3L8 8M8 3L3 8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      Back to dashboard
+    </a>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- STEP A: APPLIANCE PICK -->
+  <section id="pickWrap">
+    <div class="page-head">
+      <h1 class="display">What's giving you trouble?</h1>
+      <p>Answer a few quick questions — no photo or audio needed. We'll narrow it down from what you already know.</p>
+    </div>
+
+    <div class="app-grid" role="radiogroup" aria-label="Select appliance">
+      <button type="button" class="app-pick" data-app="fridge" data-app-name="Refrigerator">
+        <span class="app-pick-icon" role="img" aria-label="Refrigerator">🧊</span>
+        <div class="app-pick-name">Refrigerator</div>
+        <div class="app-pick-sub">Guided check</div>
+      </button>
+      <button type="button" class="app-pick" data-app="ac" data-app-name="Air Conditioner">
+        <span class="app-pick-icon" role="img" aria-label="Air Conditioner">❄️</span>
+        <div class="app-pick-name">Air Conditioner</div>
+        <div class="app-pick-sub">Guided check</div>
+      </button>
+      <button type="button" class="app-pick" data-app="washer" data-app-name="Washing Machine">
+        <span class="app-pick-icon" role="img" aria-label="Washing Machine">🫧</span>
+        <div class="app-pick-name">Washing Machine</div>
+        <div class="app-pick-sub">Guided check</div>
+      </button>
+      <button type="button" class="app-pick" data-app="purifier" data-app-name="Air Purifier">
+        <span class="app-pick-icon" role="img" aria-label="Air Purifier">💨</span>
+        <div class="app-pick-name">Air Purifier</div>
+        <div class="app-pick-sub">Guided check</div>
+      </button>
+      <button type="button" class="app-pick" data-app="camera" data-app-name="Security Camera">
+        <span class="app-pick-icon" role="img" aria-label="Security Camera">📷</span>
+        <div class="app-pick-name">Security Camera</div>
+        <div class="app-pick-sub">Guided check</div>
+      </button>
+    </div>
+  </section>
+
+  <!-- STEP B: QUESTION FLOW -->
+  <section class="question-wrap" id="questionWrap">
+    <div class="page-head" style="padding-top:32px;">
+      <p class="label" id="applianceLabel">REFRIGERATOR</p>
+    </div>
+
+    <div class="error-banner" id="errorBanner"></div>
+
+    <div class="progress-trail" id="progressTrail"></div>
+
+    <div id="liveArea"></div>
+
+    <div class="foot-actions">
+      <button type="button" class="btn btn-secondary" id="startOverBtn">Start over</button>
+    </div>
+  </section>
+
+</main>
+
+<script>
+'use strict';
+
+const API_BASE = 'http://127.0.0.1:8000';
+const SESSION_KEY = 'diagnos_symptom_session_id';
+
+const pickWrap = document.getElementById('pickWrap');
+const questionWrap = document.getElementById('questionWrap');
+const applianceLabel = document.getElementById('applianceLabel');
+const progressTrail = document.getElementById('progressTrail');
+const liveArea = document.getElementById('liveArea');
+const errorBanner = document.getElementById('errorBanner');
+
+let state = {
+  applianceName: null,
+};
+
+function showError(message) {
+  errorBanner.textContent = message;
+  errorBanner.classList.add('show');
+}
+function hideError() {
+  errorBanner.classList.remove('show');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+async function apiPost(path, body) {
+  const res = await DiagnosAuth.authFetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.detail || `Request failed (${res.status})`);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+async function apiGet(path) {
+  const res = await DiagnosAuth.authFetch(`${API_BASE}${path}`, { method: 'GET' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.detail || `Request failed (${res.status})`);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+function renderTrail(history) {
+  progressTrail.innerHTML = '';
+  history.forEach((step) => {
+    const chip = document.createElement('span');
+    chip.className = 'trail-chip';
+    chip.innerHTML = `${escapeHtml(step.question_text)}: <strong>${escapeHtml(step.selected_label)}</strong>`;
+    progressTrail.appendChild(chip);
+  });
+}
+
+function renderQuestion(question) {
+  liveArea.innerHTML = `
+    <div class="q-card">
+      <div class="q-text">${escapeHtml(question.question_text)}</div>
+      <div class="option-list" id="optionList"></div>
+    </div>
+  `;
+  const optionList = document.getElementById('optionList');
+  question.options.forEach((opt) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'option-btn';
+    btn.innerHTML = `<span>${escapeHtml(opt.label)}</span>
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2 6.5H11M11 6.5L7.5 3M11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    btn.addEventListener('click', () => submitAnswer(opt.value));
+    optionList.appendChild(btn);
+  });
+}
+
+function renderLoading() {
+  liveArea.innerHTML = `<div class="q-loading"><span class="spin"></span> Finding the next question…</div>`;
+}
+
+function renderResult(result) {
+  liveArea.innerHTML = `
+    <div class="result-card">
+      <div class="result-head">Likely cause${result.length > 1 ? 's' : ''}</div>
+      <div id="resultRows"></div>
+      <div class="result-note">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M7 4.5V7.5M7 9.5H7.01" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        <span>This comes from your answers alone — no photo or audio analyzed. Add a diagnosis with a photo or sound for a sharper result.</span>
+      </div>
+    </div>
+  `;
+  const rows = document.getElementById('resultRows');
+  result.forEach((fault) => {
+    const row = document.createElement('div');
+    row.className = 'result-fault-row';
+    row.innerHTML = `
+      <span class="result-fault-name">${escapeHtml(fault.fault_name)}</span>
+      <span class="result-fault-conf">${fault.confidence}% confidence</span>
+    `;
+    rows.appendChild(row);
+  });
+}
+
+function renderDeadEnd(message) {
+  liveArea.innerHTML = `
+    <div class="deadend-card">
+      <div class="deadend-head">Not covered yet</div>
+      <p>${escapeHtml(message)}</p>
+      <p>Try a full diagnosis with a photo or sound instead — that path doesn't depend on this question tree.</p>
+    </div>
+  `;
+}
+
+function persistSessionId(id) {
+  try { sessionStorage.setItem(SESSION_KEY, id); } catch (e) {}
+}
+function clearPersistedSessionId() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+}
+function loadPersistedSessionId() {
+  try { return sessionStorage.getItem(SESSION_KEY); } catch (e) { return null; }
+}
+
+function showQuestionFlow(applianceName) {
+  state.applianceName = applianceName;
+  applianceLabel.textContent = applianceName.toUpperCase();
+  pickWrap.style.display = 'none';
+  questionWrap.classList.add('active');
+}
+
+function showPicker() {
+  pickWrap.style.display = '';
+  questionWrap.classList.remove('active');
+}
+
+let currentSessionId = null;
+
+async function startSession(appliance, applianceName) {
+  hideError();
+  showQuestionFlow(applianceName);
+  renderLoading();
+  progressTrail.innerHTML = '';
+
+  try {
+    const session = await apiPost('/symptom-sessions', { appliance_type: appliance });
+    currentSessionId = session.id;
+    persistSessionId(session.id);
+    renderTrail(session.history);
+    if (session.status === 'completed') {
+      renderResult(session.result);
+    } else {
+      renderQuestion(session.current_question);
+    }
+  } catch (err) {
+    if (err.status === 404) {
+      renderDeadEnd(`No symptom-checker questions exist yet for "${applianceName}". This appliance hasn't been covered by the question tree yet.`);
+    } else {
+      showError(err.message || 'Could not start the symptom checker. Check your connection and try again.');
+      showPicker();
+    }
+  }
+}
+
+async function submitAnswer(value) {
+  if (!currentSessionId) return;
+  hideError();
+  renderLoading();
+
+  try {
+    const session = await apiPost(`/symptom-sessions/${currentSessionId}/answer`, { value });
+    renderTrail(session.history);
+    if (session.status === 'completed') {
+      renderResult(session.result);
+      clearPersistedSessionId();
+    } else {
+      renderQuestion(session.current_question);
+    }
+  } catch (err) {
+    if (err.status === 501) {
+      renderDeadEnd(err.message);
+    } else {
+      showError(err.message || 'Could not submit your answer. Check your connection and try again.');
+    }
+  }
+}
+
+document.querySelectorAll('.app-pick').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    startSession(btn.dataset.app, btn.dataset.appName);
+  });
+});
+
+document.getElementById('startOverBtn').addEventListener('click', () => {
+  clearPersistedSessionId();
+  currentSessionId = null;
+  showPicker();
+});
+
+/* ─── RESUME ON LOAD ───────────────────────────────────────────
+   A session id is just a short string — unlike a real uploaded File,
+   there's nothing here that can't survive a reload, so persisting it in
+   sessionStorage and resuming via GET /symptom-sessions/{id} is safe and
+   genuinely useful (e.g. an accidental refresh mid-walk doesn't lose
+   progress, since the real state already lives on the server).
+*/
+(async function resumeIfAny() {
+  const savedId = loadPersistedSessionId();
+  if (!savedId) return;
+
+  try {
+    const session = await apiGet(`/symptom-sessions/${savedId}`);
+    // We don't know the human-readable appliance name from the session
+    // alone in a friendly way without a lookup table — derive it from the
+    // appliance picker buttons we already have on the page.
+    const matchingBtn = document.querySelector(`.app-pick[data-app="${session.appliance_type}"]`);
+    const applianceName = matchingBtn ? matchingBtn.dataset.appName : session.appliance_type;
+
+    currentSessionId = session.id;
+    showQuestionFlow(applianceName);
+    renderTrail(session.history);
+
+    if (session.status === 'completed') {
+      renderResult(session.result);
+      clearPersistedSessionId();
+    } else {
+      renderQuestion(session.current_question);
+    }
+  } catch (err) {
+    // Saved session id is stale/invalid/belongs to a different account —
+    // just clear it and let the picker show normally.
+    clearPersistedSessionId();
+  }
+})();
+</script>
+
+</body>
+</html>
