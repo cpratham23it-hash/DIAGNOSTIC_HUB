@@ -25,7 +25,7 @@ from app.security.current_user import CurrentUser, get_current_user
 router = APIRouter(prefix="/diagnoses", tags=["diagnoses"])
 
 ALLOWED_APPLIANCE_TYPES = {"fridge", "ac", "washer", "purifier", "camera"}
-AUDIO_SUPPORTED_APPLIANCES = {"fridge", "ac", "purifier"}
+AUDIO_SUPPORTED_APPLIANCES = {"fridge", "ac", "purifier", "washer"}
 
 
 async def _get_owned_file(db, file_id: str, current_user_id: str, *, field_name: str) -> dict:
@@ -155,7 +155,7 @@ async def analyze_diagnosis(
         )
 
     from app.ml.inference import model_is_available
-    if not model_is_available():
+    if not model_is_available(appliance_type):
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="The audio model hasn't been trained yet. Run  python ml/train.py  first.",
@@ -181,7 +181,7 @@ async def analyze_diagnosis(
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(
             None,
-            lambda: get_classifier().predict(audio_bytes, appliance_type=appliance_type),
+            lambda: get_classifier(appliance_type).predict(audio_bytes, appliance_type=appliance_type),
         )
 
         primary_fault = None
