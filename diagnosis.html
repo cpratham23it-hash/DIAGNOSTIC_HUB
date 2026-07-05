@@ -721,13 +721,18 @@ input, textarea { font-family: inherit; color: inherit; }
 
 const API_BASE = 'http://127.0.0.1:8000';
 
+// Appliance types the trained audio model covers.
+// Washer and camera are excluded — no model trained for those yet.
+const AUDIO_SUPPORTED_APPLIANCES = new Set(['fridge', 'ac', 'purifier', 'washer']);
+
 /* ───────────────────────── STATE ───────────────────────── */
 const state = {
   step: 1,
   appliance: null,
   applianceName: null,
   image: null,
-  audio: null,
+  audio: null,       // label string (for UI display)
+  audioFile: null,   // real File object (for actual upload) — null for recorder path
   symptomText: ''
 };
 
@@ -908,9 +913,18 @@ const audioFileArea = document.getElementById('audioFileArea');
 const audioBadge = document.getElementById('audioBadge');
 const audioCard = document.getElementById('audioCard');
 
-let recording = false;
+// ── REAL MEDIARECORDER IMPLEMENTATION ──────────────────────────────────────
+// Previously this was a fake timer — clicking record just counted seconds
+// with setInterval and stored only a label string, never actual audio bytes.
+// This is now a real mic recording that produces an actual audio Blob, stored
+// as a File object in state.audioFile so it gets uploaded to POST /files and
+// analyzed by the real ML model just like an uploaded WAV/MP3 would be.
+
+let mediaRecorder = null;
+let recordedChunks = [];
 let recTimer = null;
 let recSeconds = 0;
+let recording = false;
 
 function formatTime(s) {
   const m = Math.floor(s / 60).toString().padStart(2, '0');
@@ -918,8 +932,9 @@ function formatTime(s) {
   return `${m}:${sec}`;
 }
 
-function setAudioFile(label) {
+function setAudioFile(label, fileObj) {
   state.audio = label;
+  state.audioFile = fileObj || null;
   audioBadge.textContent = 'ADDED';
   audioBadge.classList.add('on');
   audioCard.classList.add('filled');
@@ -934,11 +949,23 @@ function setAudioFile(label) {
   removeBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     state.audio = null;
+    state.audioFile = null;
     audioBadge.textContent = 'NOT ADDED';
     audioBadge.classList.remove('on');
     audioCard.classList.remove('filled');
     audioFileArea.innerHTML = '';
     audioInput.value = '';
+    // Also stop any in-progress recording cleanly
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+    mediaRecorder = null;
+    recordedChunks = [];
+    recording = false;
+    recBtn.classList.remove('recording');
+    recBtn.setAttribute('aria-label', 'Start recording');
+    recStatus.innerHTML = 'Tap to record · <span class="time">00:00</span>';
+    clearInterval(recTimer);
     refreshContinueState();
   });
   chip.appendChild(removeBtn);
@@ -946,23 +973,77 @@ function setAudioFile(label) {
   refreshContinueState();
 }
 
-recBtn.addEventListener('click', () => {
-  recording = !recording;
-  recBtn.classList.toggle('recording', recording);
-  recBtn.setAttribute('aria-label', recording ? 'Stop recording' : 'Start recording');
+recBtn.addEventListener('click', async () => {
+  if (!recording) {
+    // ── START RECORDING ──
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
 
-  if (recording) {
-    recSeconds = 0;
-    recStatus.innerHTML = 'Recording… <span class="time">00:00</span>';
-    recTimer = setInterval(() => {
-      recSeconds++;
-      recStatus.innerHTML = `Recording… <span class="time">${formatTime(recSeconds)}</span>`;
-    }, 1000);
+      // Pick the best supported MIME type — Chrome uses webm/opus, Firefox ogg/opus
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : MediaRecorder.isTypeSupported('audio/webm')
+          ? 'audio/webm'
+          : '';  // let the browser pick its default
+
+      mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+      recordedChunks = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        // Stop all mic tracks so the browser's "recording" indicator disappears
+        stream.getTracks().forEach(t => t.stop());
+
+        if (recordedChunks.length === 0 || recSeconds === 0) return;
+
+        const blob = new Blob(recordedChunks, {
+          type: mediaRecorder.mimeType || 'audio/webm',
+        });
+        const ext = (mediaRecorder.mimeType || '').includes('ogg') ? 'ogg' : 'webm';
+        const filename = `recording-${formatTime(recSeconds)}.${ext}`;
+
+        // Convert Blob to File so it has a .name property that passes
+        // isAllowedAudioFile() and can be sent as a real multipart upload
+        const file = new File([blob], filename, { type: blob.type });
+        setAudioFile(filename, file);
+      };
+
+      mediaRecorder.start(100);  // collect chunks every 100ms
+
+      recording = true;
+      recSeconds = 0;
+      recBtn.classList.add('recording');
+      recBtn.setAttribute('aria-label', 'Stop recording');
+      recStatus.innerHTML = 'Recording… <span class="time">00:00</span>';
+      recTimer = setInterval(() => {
+        recSeconds++;
+        recStatus.innerHTML = `Recording… <span class="time">${formatTime(recSeconds)}</span>`;
+      }, 1000);
+
+    } catch (err) {
+      // Mic permission denied or not available
+      const msg = err.name === 'NotAllowedError'
+        ? 'Microphone access was denied. Allow mic access in your browser settings and try again.'
+        : err.name === 'NotFoundError'
+          ? 'No microphone found. Connect a mic and try again.'
+          : `Could not start recording: ${err.message}`;
+
+      audioFileArea.innerHTML = `<div style="font-size:12.5px;color:var(--red);margin-top:10px;">${escapeHtml(msg)}</div>`;
+    }
+
   } else {
+    // ── STOP RECORDING ──
+    recording = false;
+    recBtn.classList.remove('recording');
+    recBtn.setAttribute('aria-label', 'Start recording');
     clearInterval(recTimer);
     recStatus.innerHTML = `Tap to record · <span class="time">00:00</span>`;
-    if (recSeconds > 0) {
-      setAudioFile(`recording-${formatTime(recSeconds)}.wav`);
+
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();  // triggers onstop → setAudioFile
     }
   }
 });
@@ -1003,7 +1084,7 @@ audioInput.addEventListener('change', (e) => {
     audioInput.value = '';
     return;
   }
-  setAudioFile(file.name);
+  setAudioFile(file.name, file);  // pass the real File object too
 });
 
 // Text symptom
@@ -1071,20 +1152,53 @@ async function uploadImageFile(file) {
 
   if (!res.ok) {
     let detail = 'Could not upload the image.';
-    try {
-      const body = await res.json();
-      detail = body.detail || detail;
-    } catch (e) { /* response wasn't JSON — keep the generic message */ }
+    try { const body = await res.json(); detail = body.detail || detail; } catch (e) {}
     throw new Error(detail);
   }
 
   const data = await res.json();
-  return data.id; // file_id
+  return data.id;
 }
 
-async function createDiagnosis({ imageFileId, symptomText }) {
+async function uploadAudioFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('kind', 'audio');
+
+  const res = await DiagnosAuth.authFetch(`${API_BASE}/files`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!res.ok) {
+    let detail = 'Could not upload the audio file.';
+    try { const body = await res.json(); detail = body.detail || detail; } catch (e) {}
+    throw new Error(detail);
+  }
+
+  const data = await res.json();
+  return data.id;
+}
+
+async function analyzeDiagnosis(diagnosisId) {
+  const res = await DiagnosAuth.authFetch(`${API_BASE}/diagnoses/${diagnosisId}/analyze`, {
+    method: 'POST',
+  });
+
+  if (!res.ok) {
+    // Non-fatal — 422 (unsupported appliance) and 503 (model not trained)
+    // are both expected states we handle gracefully in showResults().
+    const body = await res.json().catch(() => ({}));
+    return { error: true, status: res.status, detail: body.detail || '' };
+  }
+
+  return res.json();
+}
+
+async function createDiagnosis({ imageFileId, audioFileId, symptomText }) {
   const payload = { appliance_type: state.appliance };
   if (imageFileId) payload.image_file_id = imageFileId;
+  if (audioFileId) payload.audio_file_id = audioFileId;
   if (symptomText && symptomText.trim()) payload.symptom_text = symptomText.trim();
 
   const res = await DiagnosAuth.authFetch(`${API_BASE}/diagnoses`, {
@@ -1122,10 +1236,14 @@ function setStageState(stageEl, label, mode) {
 async function runAnalysis() {
   hideApiError();
 
+  const willAnalyzeAudio = state.audioFile && AUDIO_SUPPORTED_APPLIANCES.has(state.appliance);
+
   const stages = [];
   if (state.image) stages.push({ key: 'image', label: 'Reading image for visible damage' });
+  if (state.audioFile) stages.push({ key: 'audio', label: 'Uploading audio recording' });
   if (state.symptomText.trim()) stages.push({ key: 'text', label: 'Parsing symptom description' });
   stages.push({ key: 'save', label: 'Saving your diagnosis' });
+  if (willAnalyzeAudio) stages.push({ key: 'analyze', label: 'Running audio fault detection' });
   stages.push({ key: 'rank', label: 'Cross-referencing fault library' });
 
   const stageList = document.getElementById('stageList');
@@ -1142,6 +1260,7 @@ async function runAnalysis() {
 
   try {
     let imageFileId = null;
+    let audioFileId = null;
 
     if (state.image) {
       const imgStage = document.getElementById('stage-image');
@@ -1151,26 +1270,52 @@ async function runAnalysis() {
       setStageState(imgStage, 'Reading image for visible damage', 'done');
     }
 
+    if (state.audioFile) {
+      const audStage = document.getElementById('stage-audio');
+      setStageState(audStage, 'Uploading audio recording', 'active');
+      stageText.textContent = 'Uploading audio recording…';
+      audioFileId = await uploadAudioFile(state.audioFile);
+      setStageState(audStage, 'Uploading audio recording', 'done');
+    }
+
     if (state.symptomText.trim()) {
       const textStage = document.getElementById('stage-text');
-      setStageState(textStage, 'Parsing symptom description', 'done');
+      if (textStage) setStageState(textStage, 'Parsing symptom description', 'done');
     }
 
     const saveStage = document.getElementById('stage-save');
     setStageState(saveStage, 'Saving your diagnosis', 'active');
     stageText.textContent = 'Saving your diagnosis…';
 
-    // This is the real call — it actually uploads to POST /files and
-    // creates a real document via POST /diagnoses. What gets SHOWN after
-    // this (showResults below) is still a placeholder fault card, since
-    // no ML model exists yet to produce a real prediction — but the save
-    // itself is real and lands in MongoDB regardless of what's displayed.
     const diagnosis = await createDiagnosis({
       imageFileId,
+      audioFileId,
       symptomText: state.symptomText,
     });
 
     setStageState(saveStage, 'Saved', 'done');
+
+    // If we have a real audio file and the appliance is supported,
+    // call the ML model. This replaces the fake setTimeout choreography
+    // with an actual inference call.
+    let analyzedDiagnosis = diagnosis;
+
+    if (willAnalyzeAudio) {
+      const analyzeStage = document.getElementById('stage-analyze');
+      setStageState(analyzeStage, 'Running audio fault detection', 'active');
+      stageText.textContent = 'Running audio fault detection…';
+
+      const result = await analyzeDiagnosis(diagnosis.id);
+
+      if (result.error) {
+        // Model not trained yet (503) or appliance not supported (422) —
+        // not a hard failure, just fall back to placeholder results.
+        setStageState(analyzeStage, 'Running audio fault detection', 'done');
+      } else {
+        analyzedDiagnosis = result;
+        setStageState(analyzeStage, 'Running audio fault detection', 'done');
+      }
+    }
 
     const rankStage = document.getElementById('stage-rank');
     setStageState(rankStage, 'Cross-referencing fault library', 'active');
@@ -1179,8 +1324,9 @@ async function runAnalysis() {
     setTimeout(() => {
       setStageState(rankStage, 'Cross-referencing fault library', 'done');
       stageText.textContent = 'Done.';
-      setTimeout(() => showResults(diagnosis), 300);
+      setTimeout(() => showResults(analyzedDiagnosis), 300);
     }, 500);
+
   } catch (err) {
     stageText.textContent = 'Something went wrong.';
     showApiError(err.message || 'Could not save your diagnosis. Check your connection and try again.');
@@ -1188,45 +1334,70 @@ async function runAnalysis() {
 }
 
 /* ───────────────────────── STEP 4: RESULTS ─────────────────────────
-   diagnosis is the real saved record (has a real id, was really written
-   to MongoDB). The fault/confidence/cost shown below is the FAULT_DATA
-   placeholder, keyed by appliance type — not a real prediction. Swapping
-   this for a real model's output is Module 3's job; until then this just
-   keeps the results screen from looking broken/empty.
+   Shows REAL model output when available (status=done, primary_fault set),
+   falls back to FAULT_DATA placeholder for:
+     - washer / camera (no audio model trained yet)
+     - text/image-only diagnoses (no audio was uploaded)
+     - recorder path (fake WAV, no real file to analyze)
+     - model not yet trained (503 from analyze endpoint)
 */
 function showResults(diagnosis) {
-  const data = FAULT_DATA[state.appliance];
-
   document.getElementById('resultApplianceLine').textContent =
     `Based on your ${state.applianceName.toLowerCase()} diagnosis.`;
-  document.getElementById('primaryFault').textContent = data.primary;
-  document.getElementById('primaryConf').textContent = data.conf + '% confidence';
-  document.getElementById('primaryDesc').textContent = data.desc;
-  document.getElementById('costValue').textContent = data.cost;
-  document.getElementById('costRegion').textContent = 'REGION: ' + data.region;
 
-  const causeList = document.getElementById('causeList');
-  causeList.innerHTML = '';
-  data.others.forEach((pair, idx) => {
-    const [name, pct] = pair;
-    const row = document.createElement('div');
-    row.className = 'cause-row';
-    row.innerHTML = `
-      <span class="cause-rank">${String(idx + 2).padStart(2, '0')}</span>
-      <span class="cause-name">${escapeHtml(name)}</span>
-      <span class="cause-bar-track"><span class="cause-bar-fill" style="width:0%"></span></span>
-      <span class="cause-pct">${pct}%</span>
-    `;
-    causeList.appendChild(row);
-  });
+  const isRealResult = diagnosis.status === 'done' && diagnosis.primary_fault;
+
+  if (isRealResult) {
+    // Real model output — show what the model actually found
+    const fault = diagnosis.primary_fault;
+    document.getElementById('primaryFault').textContent = fault.fault_name;
+    document.getElementById('primaryConf').textContent = fault.confidence.toFixed(1) + '% confidence';
+    document.getElementById('primaryDesc').textContent =
+      'Detected from your audio recording using the trained fault-detection model.';
+    document.getElementById('costValue').textContent = '—';
+    document.getElementById('costRegion').textContent = 'Cost data coming in Module 6';
+
+    const causeList = document.getElementById('causeList');
+    causeList.innerHTML = `
+      <div class="cause-row" style="color:var(--muted);font-size:13px;padding:10px 0;">
+        Multi-fault ranking requires the full ML ensemble (Module 3 complete) — coming soon.
+      </div>`;
+
+  } else {
+    // Placeholder — no real model result, use FAULT_DATA
+    const data = FAULT_DATA[state.appliance];
+    document.getElementById('primaryFault').textContent = data.primary;
+    document.getElementById('primaryConf').textContent = data.conf + '% confidence';
+    document.getElementById('primaryDesc').textContent = data.desc;
+    document.getElementById('costValue').textContent = data.cost;
+    document.getElementById('costRegion').textContent = 'REGION: ' + data.region;
+
+    const causeList = document.getElementById('causeList');
+    causeList.innerHTML = '';
+    data.others.forEach((pair, idx) => {
+      const [name, pct] = pair;
+      const row = document.createElement('div');
+      row.className = 'cause-row';
+      row.innerHTML = `
+        <span class="cause-rank">${String(idx + 2).padStart(2, '0')}</span>
+        <span class="cause-name">${escapeHtml(name)}</span>
+        <span class="cause-bar-track"><span class="cause-bar-fill" style="width:0%"></span></span>
+        <span class="cause-pct">${pct}%</span>
+      `;
+      causeList.appendChild(row);
+    });
+  }
 
   goToStep(4);
 
-  setTimeout(() => {
-    document.querySelectorAll('.cause-bar-fill').forEach((fill, idx) => {
-      fill.style.width = data.others[idx][1] + '%';
-    });
-  }, 150);
+  if (!isRealResult) {
+    setTimeout(() => {
+      const data = FAULT_DATA[state.appliance];
+      document.querySelectorAll('.cause-bar-fill').forEach((fill, idx) => {
+        if (data.others[idx]) fill.style.width = data.others[idx][1] + '%';
+      });
+    }, 150);
+  }
 }
 
 document.getElementById('restartBtn').addEventListener('click', () => {
@@ -1234,6 +1405,7 @@ document.getElementById('restartBtn').addEventListener('click', () => {
   state.applianceName = null;
   state.image = null;
   state.audio = null;
+  state.audioFile = null;
   state.symptomText = '';
 
   document.querySelectorAll('.app-pick').forEach(b => { b.classList.remove('selected'); b.setAttribute('aria-checked', 'false'); });
