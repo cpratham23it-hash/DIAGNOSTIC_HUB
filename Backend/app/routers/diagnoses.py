@@ -1,25 +1,13 @@
 """
-Diagnoses endpoints (Module 2b — input collection).
+Diagnoses endpoints (Module 2b + Module 3 inference).
 
-Flow from the frontend:
-  1. If there's an image and/or audio file, upload each to POST /files first
-     (already built — Module 0) and get back a file_id for each.
-  2. Call POST /diagnoses with appliance_type, optional image_file_id,
-     optional audio_file_id, optional symptom_text.
-
-This router does NOT handle raw file uploads itself — that's intentionally
-owned by files.py so it stays reusable. This router's only job is: validate
-that any referenced file_id actually exists, belongs to the caller, and is
-the right kind of file (image_file_id must point at an image, etc.), then
-persist a diagnoses document.
-
-No ML runs here — there are no trained models yet (Module 3). A diagnosis
-is created with status="pending" and just sits there until that module
-exists to process it.
-
-GET /diagnoses        — list the signed-in user's own diagnoses, newest first
-GET /diagnoses/{id}   — fetch one diagnosis the signed-in user owns
+POST /diagnoses/{id}/analyze  — run the trained audio model against this diagnosis
+                                 if it has an audio_file_id. Updates status and
+                                 primary_fault in place. Returns the updated diagnosis.
 """
+
+import asyncio
+from pathlib import Path
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -37,34 +25,20 @@ from app.security.current_user import CurrentUser, get_current_user
 router = APIRouter(prefix="/diagnoses", tags=["diagnoses"])
 
 ALLOWED_APPLIANCE_TYPES = {"fridge", "ac", "washer", "purifier", "camera"}
+AUDIO_SUPPORTED_APPLIANCES = {"fridge", "ac", "purifier"}
 
 
 async def _get_owned_file(db, file_id: str, current_user_id: str, *, field_name: str) -> dict:
-    """Looks up a files-collection document by id and confirms it belongs to
-    the caller. Raises 400 (not 404) on any problem — from this router's
-    point of view, a bad file_id is a bad request body, not a missing
-    resource lookup."""
     if not ObjectId.is_valid(file_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{field_name} is not a valid file id.",
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{field_name} is not a valid file id.")
     try:
         doc = await db.files.find_one({"_id": ObjectId(file_id)})
     except InvalidId:
         doc = None
-
     if doc is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{field_name} does not reference an uploaded file.",
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{field_name} does not reference an uploaded file.")
     if doc["user_id"] != current_user_id:
-        # Don't confirm the file exists at all if it belongs to someone else.
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"{field_name} does not reference an uploaded file.",
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{field_name} does not reference an uploaded file.")
     return doc
 
 
@@ -76,8 +50,7 @@ async def create_diagnosis(
     if body.appliance_type not in ALLOWED_APPLIANCE_TYPES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unknown appliance_type '{body.appliance_type}'. "
-            f"Allowed: {sorted(ALLOWED_APPLIANCE_TYPES)}.",
+            detail=f"Unknown appliance_type '{body.appliance_type}'. Allowed: {sorted(ALLOWED_APPLIANCE_TYPES)}.",
         )
 
     cleaned_text = body.symptom_text.strip() if body.symptom_text else None
@@ -93,7 +66,6 @@ async def create_diagnosis(
 
     db = get_db()
 
-    # appliance_id, if given, must belong to the caller too — same pattern.
     if body.appliance_id is not None:
         if not ObjectId.is_valid(body.appliance_id):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid appliance_id.")
@@ -104,18 +76,12 @@ async def create_diagnosis(
     if has_image:
         file_doc = await _get_owned_file(db, body.image_file_id, current_user.id, field_name="image_file_id")
         if not file_doc["content_type"].startswith("image/"):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="image_file_id does not reference an image file.",
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="image_file_id does not reference an image file.")
 
     if has_audio:
         file_doc = await _get_owned_file(db, body.audio_file_id, current_user.id, field_name="audio_file_id")
         if not file_doc["content_type"].startswith("audio/"):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="audio_file_id does not reference an audio file.",
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="audio_file_id does not reference an audio file.")
 
     body.symptom_text = cleaned_text
     doc = new_diagnosis_document(user_id=current_user.id, body=body)
@@ -148,6 +114,107 @@ def _doc_to_public(doc: dict) -> DiagnosisPublic:
         other_faults=[FaultGuess(**f) for f in doc.get("other_faults", [])],
         created_at=doc["created_at"],
     )
+
+
+@router.post("/{diagnosis_id}/analyze", response_model=DiagnosisPublic)
+async def analyze_diagnosis(
+    diagnosis_id: str,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """
+    Run the trained audio model against a saved diagnosis that has an
+    audio_file_id. Updates status → 'done' and fills in primary_fault.
+
+    Only covers fridge, ac, purifier (fan-type model).
+    Returns 503 gracefully if the model file hasn't been trained yet.
+    """
+    if not ObjectId.is_valid(diagnosis_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnosis not found.")
+
+    db = get_db()
+    try:
+        doc = await db.diagnoses.find_one({"_id": ObjectId(diagnosis_id)})
+    except InvalidId:
+        doc = None
+
+    if doc is None or doc["user_id"] != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnosis not found.")
+
+    if not doc.get("audio_file_id"):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="This diagnosis has no audio file to analyze.",
+        )
+
+    appliance_type = doc["appliance_type"]
+    if appliance_type not in AUDIO_SUPPORTED_APPLIANCES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Audio analysis not available for '{appliance_type}'. "
+                   f"Supported: {sorted(AUDIO_SUPPORTED_APPLIANCES)}.",
+        )
+
+    from app.ml.inference import model_is_available
+    if not model_is_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="The audio model hasn't been trained yet. Run  python ml/train.py  first.",
+        )
+
+    audio_file_doc = await db.files.find_one({"_id": ObjectId(doc["audio_file_id"])})
+    if audio_file_doc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio file no longer exists.")
+
+    stored_path = Path(audio_file_doc["stored_path"])
+    if not stored_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio file not found on disk.")
+
+    await db.diagnoses.update_one(
+        {"_id": ObjectId(diagnosis_id)},
+        {"$set": {"status": "processing"}},
+    )
+
+    try:
+        from app.ml.inference import get_classifier
+        audio_bytes = stored_path.read_bytes()
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: get_classifier().predict(audio_bytes, appliance_type=appliance_type),
+        )
+
+        primary_fault = None
+        if result.is_anomalous and result.fault_name:
+            primary_fault = {
+                "fault_name": result.fault_name,
+                "confidence": result.confidence,
+            }
+
+        await db.diagnoses.update_one(
+            {"_id": ObjectId(diagnosis_id)},
+            {"$set": {
+                "status": "done",
+                "primary_fault": primary_fault,
+                "other_faults": [],
+                "analysis_message": result.message,
+                "frames_analyzed": result.frames_analyzed,
+                "anomaly_probability": result.anomaly_probability,
+            }},
+        )
+
+    except Exception as e:
+        await db.diagnoses.update_one(
+            {"_id": ObjectId(diagnosis_id)},
+            {"$set": {"status": "failed"}},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Analysis failed: {str(e)}",
+        )
+
+    updated_doc = await db.diagnoses.find_one({"_id": ObjectId(diagnosis_id)})
+    return _doc_to_public(updated_doc)
 
 
 @router.get("", response_model=list[DiagnosisPublic])

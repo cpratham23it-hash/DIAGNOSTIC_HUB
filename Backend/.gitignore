@@ -6,3 +6,6 @@ venv/
 *.egg-info/
 .pytest_cache/
 uploads/
+ml/data/
+ml/features/
+ml/models/
