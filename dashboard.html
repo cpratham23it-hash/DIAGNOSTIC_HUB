@@ -364,6 +364,10 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
         <svg viewBox="0 0 24 24" fill="none"><path d="M9 12L11 14L15.5 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/></svg>
         New diagnosis
       </a>
+      <a href="symptom-checker.html" class="sb-link">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.97-4.03 9-9 9-1.5 0-2.91-.37-4.15-1.02L3 21l1.05-3.5C3.38 16.2 3 14.65 3 13c0-4.97 4.03-9 9-9s9 4.03 9 9Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Symptom checker
+      </a>
       <span class="sb-link disabled" aria-disabled="true">
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5a2 2 0 0 1 2-2h8l6 6v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" stroke="currentColor" stroke-width="1.6"/><path d="M14 3v6h6" stroke="currentColor" stroke-width="1.6"/></svg>
         History
@@ -424,38 +428,22 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
 
     <div class="stat-row">
       <div class="stat-card">
-        <div class="stat-card-top">
-          <div class="stat-card-icon">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 7L9.5 4H14.5L16 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-          </div>
-        </div>
+        <div class="stat-card-top"><div class="stat-card-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="7" width="18" height="13" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M8 7L9.5 4H14.5L16 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div></div>
         <div class="stat-num mono" id="statAppliances">—</div>
         <div class="stat-label">Appliances tracked</div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-top">
-          <div class="stat-card-icon">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 12L11 14L15.5 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/></svg>
-          </div>
-        </div>
+        <div class="stat-card-top"><div class="stat-card-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 12L11 14L15.5 9.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/></svg></div></div>
         <div class="stat-num mono" id="statDiagnoses">—</div>
         <div class="stat-label">Diagnoses run</div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-top">
-          <div class="stat-card-icon">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 7v10l8 5 8-5V7l-8-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
-          </div>
-        </div>
+        <div class="stat-card-top"><div class="stat-card-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2L4 7v10l8 5 8-5V7l-8-5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></div></div>
         <div class="stat-num mono" id="statSaved" style="font-size:16px;">Not tracked yet</div>
         <div class="stat-label">Estimated saved vs. quoted</div>
       </div>
       <div class="stat-card">
-        <div class="stat-card-top">
-          <div class="stat-card-icon">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 20c0-3.5 3-6 7.5-6s7.5 2.5 7.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-          </div>
-        </div>
+        <div class="stat-card-top"><div class="stat-card-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 20c0-3.5 3-6 7.5-6s7.5 2.5 7.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></div></div>
         <div class="stat-num mono" id="statBooked">—</div>
         <div class="stat-label">Technician booked</div>
       </div>
@@ -465,16 +453,7 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
       <h2>Your appliances</h2>
     </div>
     <div class="appliance-grid" id="applianceGrid">
-      <!-- Appliance tracking (Module 4) doesn't exist yet, so this always
-           shows the empty state below until that module is built — never
-           fake cards. -->
-      <div style="grid-column:1/-1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;color:var(--muted);font-size:13.5px;">
-        Appliance tracking isn't built yet — this will show your devices and their health once it is.
-      </div>
-      <a href="diagnosis.html" class="add-appliance-card" style="text-decoration:none;">
-        <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 4V18M4 11H18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
-        <span>Run a diagnosis</span>
-      </a>
+      <div id="applianceLoadingState" style="grid-column:1/-1;color:var(--dim);font-size:13.5px;padding:8px 0;">Loading…</div>
     </div>
 
     <div class="section-row">
@@ -490,15 +469,54 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
         <span>Status</span>
       </div>
       <div id="historyRows">
-        <div class="history-row">
-          <span style="color:var(--dim);">Loading…</span>
-        </div>
+        <div class="history-row"><span style="color:var(--dim);">Loading…</span></div>
       </div>
     </div>
 
   </main>
-
 </div>
+
+<!-- ADD APPLIANCE MODAL -->
+<div id="addApplianceModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border-2);border-radius:16px;padding:32px;width:100%;max-width:440px;margin:16px;">
+    <h2 style="font-family:var(--ff-display);font-size:22px;font-weight:700;margin-bottom:6px;">Add an appliance</h2>
+    <p style="font-size:13.5px;color:var(--muted);margin-bottom:24px;">Track a device to monitor its health over time.</p>
+
+    <div id="addApplianceError" style="display:none;background:rgba(255,87,87,0.08);border:1px solid rgba(255,87,87,0.25);color:#FF8787;font-size:13px;padding:10px 14px;border-radius:8px;margin-bottom:16px;"></div>
+
+    <label style="display:block;margin-bottom:16px;">
+      <span style="font-size:12px;font-family:var(--ff-mono);text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">Appliance type *</span>
+      <select id="addType" style="display:block;width:100%;margin-top:6px;background:var(--bg);border:1px solid var(--border-2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:var(--ff-body);">
+        <option value="fridge">Refrigerator</option>
+        <option value="ac">Air Conditioner</option>
+        <option value="washer">Washing Machine</option>
+        <option value="purifier">Air Purifier</option>
+        <option value="camera">Security Camera</option>
+      </select>
+    </label>
+
+    <label style="display:block;margin-bottom:16px;">
+      <span style="font-size:12px;font-family:var(--ff-mono);text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">Nickname (e.g. "Kitchen Fridge")</span>
+      <input id="addNickname" type="text" maxlength="80" placeholder="Optional" style="display:block;width:100%;margin-top:6px;background:var(--bg);border:1px solid var(--border-2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:var(--ff-body);">
+    </label>
+
+    <label style="display:block;margin-bottom:16px;">
+      <span style="font-size:12px;font-family:var(--ff-mono);text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">Brand</span>
+      <input id="addBrand" type="text" placeholder="e.g. LG, Samsung" style="display:block;width:100%;margin-top:6px;background:var(--bg);border:1px solid var(--border-2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:var(--ff-body);">
+    </label>
+
+    <label style="display:block;margin-bottom:24px;">
+      <span style="font-size:12px;font-family:var(--ff-mono);text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);">Model</span>
+      <input id="addModel" type="text" placeholder="e.g. GL-T292RPZX" style="display:block;width:100%;margin-top:6px;background:var(--bg);border:1px solid var(--border-2);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:var(--ff-body);">
+    </label>
+
+    <div style="display:flex;gap:12px;">
+      <button type="button" id="addApplianceCancelBtn" class="btn btn-secondary" style="flex:1;">Cancel</button>
+      <button type="button" id="addApplianceSubmitBtn" class="btn btn-primary" style="flex:2;">Add appliance</button>
+    </div>
+  </div>
+</div>
+
 
 <script>
 'use strict';
@@ -513,183 +531,255 @@ const APPLIANCE_META = {
   camera:   { icon: '📷', name: 'Security Camera' },
 };
 
-function applianceLabel(type) {
-  return APPLIANCE_META[type] || { icon: '🔧', name: type };
-}
+const HEALTH_PILL_CLASS = {
+  needs_attention: 'health-attn',
+  watch: 'health-watch',
+  healthy: 'health-good',
+};
 
-// Account menu dropdown
+// ── Account menu ──────────────────────────────────────────────────────────────
 const userMenuBtn = document.getElementById('userMenuBtn');
-const userMenu = document.getElementById('userMenu');
-
-function closeUserMenu() {
-  userMenu.classList.remove('open');
-  userMenuBtn.setAttribute('aria-expanded', 'false');
-}
+const userMenu    = document.getElementById('userMenu');
 
 userMenuBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   const isOpen = userMenu.classList.toggle('open');
   userMenuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
 });
-
 document.addEventListener('click', (e) => {
   if (!userMenu.contains(e.target) && e.target !== userMenuBtn) {
-    closeUserMenu();
+    userMenu.classList.remove('open');
+    userMenuBtn.setAttribute('aria-expanded', 'false');
   }
 });
-
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeUserMenu();
+  if (e.key === 'Escape') userMenu.classList.remove('open');
 });
-
 document.getElementById('signOutBtn').addEventListener('click', () => {
   DiagnosAuth.signOut();
   window.location.href = 'index.html';
 });
 
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
-
-function formatDate(isoString) {
-  const d = new Date(isoString);
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
-}
-
-// Populate the sidebar AND the header greeting with the real signed-in
-// user (requireSignIn above already guarantees we have a token; this
-// reads the cached user info saved at sign-in time, so no extra API call
-// is needed just for the name).
+// ── User info ────────────────────────────────────────────────────────────────
 (function populateUserInfo() {
   const user = DiagnosAuth.getUser();
   if (!user) return;
-  const initials = (user.name || '?')
-    .split(' ')
-    .map(part => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  const initials = (user.name || '?').split(' ').map(p => p[0]).join('').slice(0, 2).toUpperCase();
   document.getElementById('sbAvatar').textContent = initials || '?';
   document.getElementById('sbUserName').textContent = user.name || 'Account';
   document.getElementById('sbUserEmail').textContent = user.email || '';
-
   const firstName = (user.name || '').split(' ')[0] || 'there';
   document.getElementById('dashGreeting').textContent = `Welcome back, ${firstName}.`;
 })();
 
-/* ─── REAL DASHBOARD DATA ───────────────────────────────────────────
-   Pulls from the two real sources that actually exist right now:
-   GET /diagnoses and GET /symptom-sessions. Appliance tracking (Module 4)
-   and technician bookings (Module 5) don't exist yet, so those stats
-   stay at an honest 0 / "not tracked yet" rather than showing anything
-   invented.
-*/
-async function loadDashboardData() {
-  const subline = document.getElementById('dashSubline');
-  const historyRows = document.getElementById('historyRows');
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function formatDate(iso) {
+  return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+}
+
+// ── Appliance card renderer ───────────────────────────────────────────────────
+function renderApplianceCard(appliance, health) {
+  const meta = APPLIANCE_META[appliance.type] || { icon: '🔧', name: appliance.type };
+  const pillClass = HEALTH_PILL_CLASS[health.status] || 'health-good';
+  const displayName = appliance.nickname || meta.name;
+  const subMeta = [appliance.brand, appliance.model].filter(Boolean).join(' · ') || 'No details added';
+  const lastFault = health.last_fault_name
+    ? `${escapeHtml(health.last_fault_name)}`
+    : 'No fault detected';
+
+  const card = document.createElement('div');
+  card.className = 'appliance-card';
+  card.style.cursor = 'pointer';
+  card.innerHTML = `
+    <div class="appliance-card-top">
+      <span class="appliance-icon">${meta.icon}</span>
+      <span class="health-pill ${pillClass}">${escapeHtml(health.status_label.toUpperCase())}</span>
+    </div>
+    <div class="appliance-name">${escapeHtml(displayName)}</div>
+    <div class="appliance-meta">${escapeHtml(subMeta)}</div>
+    <div class="appliance-last">
+      <span>Last result</span>
+      <strong>${lastFault}</strong>
+    </div>
+    <div style="margin-top:10px;font-size:11px;font-family:var(--ff-mono);color:var(--dim);">
+      HEALTH SCORE: ${health.score}/100
+    </div>
+  `;
+  card.addEventListener('click', () => {
+    window.location.href = `diagnosis.html`;
+  });
+  return card;
+}
+
+// ── Add appliance modal ───────────────────────────────────────────────────────
+const modal = document.getElementById('addApplianceModal');
+
+function openAddModal() {
+  document.getElementById('addApplianceError').style.display = 'none';
+  document.getElementById('addNickname').value = '';
+  document.getElementById('addBrand').value = '';
+  document.getElementById('addModel').value = '';
+  modal.style.display = 'flex';
+}
+
+function closeAddModal() {
+  modal.style.display = 'none';
+}
+
+document.getElementById('addApplianceCancelBtn').addEventListener('click', closeAddModal);
+modal.addEventListener('click', (e) => { if (e.target === modal) closeAddModal(); });
+
+document.getElementById('addApplianceSubmitBtn').addEventListener('click', async () => {
+  const errEl = document.getElementById('addApplianceError');
+  errEl.style.display = 'none';
+
+  const payload = {
+    type: document.getElementById('addType').value,
+    nickname: document.getElementById('addNickname').value.trim() || null,
+    brand: document.getElementById('addBrand').value.trim() || null,
+    model: document.getElementById('addModel').value.trim() || null,
+  };
 
   try {
-    const [diagRes, symRes] = await Promise.all([
+    const res = await DiagnosAuth.authFetch(`${API_BASE}/appliances`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || 'Could not add appliance.');
+    }
+    closeAddModal();
+    await loadDashboardData();  // refresh to show new appliance
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.style.display = 'block';
+  }
+});
+
+// ── Main data loader ──────────────────────────────────────────────────────────
+async function loadDashboardData() {
+  const subline       = document.getElementById('dashSubline');
+  const applianceGrid = document.getElementById('applianceGrid');
+  const historyRows   = document.getElementById('historyRows');
+
+  try {
+    const [appliancesRes, diagnosesRes, sessionsRes] = await Promise.all([
+      DiagnosAuth.authFetch(`${API_BASE}/appliances`),
       DiagnosAuth.authFetch(`${API_BASE}/diagnoses`),
       DiagnosAuth.authFetch(`${API_BASE}/symptom-sessions`),
     ]);
 
-    if (!diagRes.ok || !symRes.ok) {
-      throw new Error('Could not load your activity right now.');
+    if (!appliancesRes.ok || !diagnosesRes.ok || !sessionsRes.ok) {
+      throw new Error('Could not load your activity.');
     }
 
-    const diagnoses = await diagRes.json();
-    const sessions = await symRes.json();
+    const appliances = await appliancesRes.json();
+    const diagnoses  = await diagnosesRes.json();
+    const sessions   = await sessionsRes.json();
 
-    // Stats
-    document.getElementById('statAppliances').textContent = '0';
-    document.getElementById('statDiagnoses').textContent = diagnoses.length + sessions.length;
-    document.getElementById('statBooked').textContent = '0';
+    // ── Stats ──
+    document.getElementById('statAppliances').textContent = appliances.length;
+    document.getElementById('statDiagnoses').textContent  = diagnoses.length + sessions.length;
+    document.getElementById('statBooked').textContent     = '0';
 
-    subline.textContent = (diagnoses.length + sessions.length) > 0
-      ? `${diagnoses.length + sessions.length} diagnoses run so far.`
-      : `No diagnoses run yet — try one below.`;
+    const attnCount = 0; // filled below once health scores are computed
+    subline.textContent = appliances.length > 0
+      ? `${appliances.length} appliance${appliances.length > 1 ? 's' : ''} tracked · ${diagnoses.length + sessions.length} diagnoses run`
+      : `${diagnoses.length + sessions.length} diagnoses run so far.`;
 
-    // Merge diagnoses + symptom sessions into one activity feed
+    // ── Appliance cards with real health scores ──
+    applianceGrid.innerHTML = '';
+
+    if (appliances.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'grid-column:1/-1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px;text-align:center;color:var(--muted);font-size:13.5px;';
+      empty.textContent = 'No appliances tracked yet — add one to start monitoring its health.';
+      applianceGrid.appendChild(empty);
+    } else {
+      // Fetch health for all appliances in parallel
+      const healthResults = await Promise.all(
+        appliances.map(a =>
+          DiagnosAuth.authFetch(`${API_BASE}/appliances/${a.id}/health`)
+            .then(r => r.ok ? r.json() : { status: 'healthy', status_label: 'Healthy', score: 100, last_fault_name: null, fault_diagnoses_90d: 0 })
+            .catch(() => ({ status: 'healthy', status_label: 'Healthy', score: 100, last_fault_name: null, fault_diagnoses_90d: 0 }))
+        )
+      );
+
+      let needsAttn = 0;
+      appliances.forEach((appliance, i) => {
+        const health = healthResults[i];
+        if (health.status === 'needs_attention') needsAttn++;
+        applianceGrid.appendChild(renderApplianceCard(appliance, health));
+      });
+
+      if (needsAttn > 0) {
+        subline.textContent = `${appliances.length} appliance${appliances.length > 1 ? 's' : ''} tracked · ${needsAttn} need${needsAttn > 1 ? '' : 's'} attention`;
+      }
+    }
+
+    // Add appliance button always at end of grid
+    const addCard = document.createElement('button');
+    addCard.type = 'button';
+    addCard.className = 'add-appliance-card';
+    addCard.innerHTML = `<svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 4V18M4 11H18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><span>Add an appliance</span>`;
+    addCard.addEventListener('click', openAddModal);
+    applianceGrid.appendChild(addCard);
+
+    // ── History ──
     const combined = [];
-
     diagnoses.forEach((d) => {
-      const meta = applianceLabel(d.appliance_type);
-      let resultLabel = 'Pending';
-      let confLabel = '—';
-      if (d.primary_fault) {
-        resultLabel = d.primary_fault.fault_name;
-        confLabel = `${d.primary_fault.confidence}%`;
-      } else if (d.status === 'pending') {
-        resultLabel = 'Awaiting analysis';
-      }
+      const meta = APPLIANCE_META[d.appliance_type] || { icon: '🔧', name: d.appliance_type };
       combined.push({
-        icon: meta.icon,
-        name: meta.name,
-        result: resultLabel,
-        confidence: confLabel,
-        date: d.created_at,
-        status: d.status,
-        statusLabel: d.status.toUpperCase(),
+        icon: meta.icon, name: meta.name,
+        result: d.primary_fault ? d.primary_fault.fault_name : 'Awaiting analysis',
+        confidence: d.primary_fault ? `${d.primary_fault.confidence}%` : '—',
+        date: d.created_at, statusLabel: d.status.toUpperCase(),
       });
     });
-
     sessions.forEach((s) => {
-      const meta = applianceLabel(s.appliance_type);
-      let resultLabel = 'In progress';
-      let confLabel = '—';
-      if (s.status === 'completed' && s.result && s.result.length > 0) {
-        resultLabel = s.result[0].fault_name;
-        confLabel = `${s.result[0].confidence}%`;
-      }
+      const meta = APPLIANCE_META[s.appliance_type] || { icon: '🔧', name: s.appliance_type };
       combined.push({
-        icon: meta.icon,
-        name: meta.name,
-        result: resultLabel,
-        confidence: confLabel,
-        date: s.updated_at,
-        status: s.status,
-        statusLabel: s.status === 'completed' ? 'COMPLETED' : 'IN PROGRESS',
+        icon: meta.icon, name: meta.name,
+        result: (s.status === 'completed' && s.result?.length) ? s.result[0].fault_name : 'In progress',
+        confidence: (s.status === 'completed' && s.result?.length) ? `${s.result[0].confidence}%` : '—',
+        date: s.updated_at, statusLabel: s.status === 'completed' ? 'COMPLETED' : 'IN PROGRESS',
       });
     });
-
     combined.sort((a, b) => new Date(b.date) - new Date(a.date));
 
     if (combined.length === 0) {
-      historyRows.innerHTML = `
-        <div class="history-row">
-          <span style="color:var(--dim);grid-column:1/-1;">Nothing yet — run a diagnosis or try the symptom checker to see activity here.</span>
-        </div>
-      `;
-      return;
+      historyRows.innerHTML = `<div class="history-row"><span style="color:var(--dim);grid-column:1/-1;">Nothing yet — run a diagnosis to see activity here.</span></div>`;
+    } else {
+      historyRows.innerHTML = '';
+      combined.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'history-row';
+        row.innerHTML = `
+          <span class="hist-appliance">${item.icon} ${escapeHtml(item.name)}</span>
+          <span class="hist-fault">${escapeHtml(item.result)}</span>
+          <span class="hist-conf">${escapeHtml(item.confidence)}</span>
+          <span class="hist-date">${formatDate(item.date)}</span>
+          <span class="hist-status status-open">${escapeHtml(item.statusLabel)}</span>
+        `;
+        historyRows.appendChild(row);
+      });
     }
-
-    historyRows.innerHTML = '';
-    combined.forEach((item) => {
-      const row = document.createElement('div');
-      row.className = 'history-row';
-      row.innerHTML = `
-        <span class="hist-appliance">${item.icon} ${escapeHtml(item.name)}</span>
-        <span class="hist-fault">${escapeHtml(item.result)}</span>
-        <span class="hist-conf">${escapeHtml(item.confidence)}</span>
-        <span class="hist-date">${formatDate(item.date)}</span>
-        <span class="hist-status status-open">${escapeHtml(item.statusLabel)}</span>
-      `;
-      historyRows.appendChild(row);
-    });
 
   } catch (err) {
     subline.textContent = 'Could not load your activity.';
     document.getElementById('statAppliances').textContent = '—';
-    document.getElementById('statDiagnoses').textContent = '—';
-    document.getElementById('statBooked').textContent = '—';
-    historyRows.innerHTML = `
-      <div class="history-row">
-        <span style="color:var(--red);grid-column:1/-1;">${escapeHtml(err.message || 'Something went wrong loading your activity.')}</span>
-      </div>
-    `;
+    document.getElementById('statDiagnoses').textContent  = '—';
+    document.getElementById('statBooked').textContent     = '—';
+    applianceGrid.innerHTML = `<div style="grid-column:1/-1;color:var(--red);font-size:13px;">${escapeHtml(err.message || 'Something went wrong.')}</div>`;
+    historyRows.innerHTML = `<div class="history-row"><span style="color:var(--red);">${escapeHtml(err.message || 'Could not load activity.')}</span></div>`;
   }
 }
 
