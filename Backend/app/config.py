@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     max_upload_size_bytes: int = 25 * 1024 * 1024  # 25 MB
 
     gemini_api_key: str = ""  # set GEMINI_API_KEY in .env
+    deepseek_api_key: str = ""  # set DEEPSEEK_API_KEY in .env
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
