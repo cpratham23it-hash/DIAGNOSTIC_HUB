@@ -19,6 +19,27 @@ import librosa
 import numpy as np
 import tensorflow as tf
 
+import tempfile
+
+
+def _load_audio_bytes(audio_bytes: bytes, target_sr: int):
+    """
+    Load audio from raw bytes. librosa.load() on a BytesIO only uses the
+    soundfile backend, which cannot decode WebM/MP3/M4A. Writing to a real
+    temp file lets librosa fall back to the audioread/ffmpeg backend.
+    """
+    with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as tmp:
+        tmp.write(audio_bytes)
+        tmp_path = tmp.name
+    try:
+        y, sr = librosa.load(tmp_path, sr=target_sr, mono=True)
+        return y, sr
+    finally:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
 # ── Fan/audio model config (must match preprocess.py) ────────────────────────
 SR          = 16000
 N_MELS      = 128
@@ -37,10 +58,11 @@ WASHER_FRAME_HOP  = 1.0
 WASHER_THRESHOLD  = 0.995
 # ─────────────────────────────────────────────────────────────────────────────
 
-AUDIO_MODEL_PATH  = Path(os.getenv("AUDIO_MODEL_PATH",  "ml/models/audio_model.keras"))
-WASHER_MODEL_PATH = Path(os.getenv("WASHER_MODEL_PATH", "ml/models/washer_model.keras"))
-NORM_STATS_PATH        = Path(os.getenv("AUDIO_NORM_STATS_PATH",  "ml/features/norm_stats.npy"))
-WASHER_NORM_STATS_PATH = Path(os.getenv("WASHER_NORM_STATS_PATH", "ml/features/norm_stats_washer.npy"))
+_BASE = Path(__file__).resolve().parents[3]  # D:\pratham
+AUDIO_MODEL_PATH       = _BASE / "ml" / "models" / "audio_model.keras"
+WASHER_MODEL_PATH      = _BASE / "ml" / "models" / "washer_model.keras"
+NORM_STATS_PATH        = _BASE / "ml" / "features" / "norm_stats.npy"
+WASHER_NORM_STATS_PATH = _BASE / "ml" / "features" / "norm_stats_washer.npy"
 
 APPLIANCE_FAULT_MAP = {
     "fridge":   "Compressor Strain",
@@ -81,7 +103,7 @@ class AudioClassifier:
             self._mean, self._std = 0.0, 1.0
 
     def _extract_frames(self, audio_bytes: bytes) -> np.ndarray:
-        y, _ = librosa.load(io.BytesIO(audio_bytes), sr=SR, mono=True)
+        y, _ = _load_audio_bytes(audio_bytes, SR)
         mel = librosa.feature.melspectrogram(
             y=y, sr=SR, n_fft=N_FFT, hop_length=HOP_LENGTH, n_mels=N_MELS
         )
@@ -149,7 +171,7 @@ class WasherClassifier:
         Load audio and extract STFT-based power spectrogram frames,
         matching the feature extraction in preprocess_washer.py.
         """
-        y, _ = librosa.load(io.BytesIO(audio_bytes), sr=WASHER_SR, mono=True)
+        y, _ = _load_audio_bytes(audio_bytes, WASHER_SR)
         y = y / (np.max(np.abs(y)) + 1e-8)
 
         window = np.hanning(WASHER_N_FFT).astype(np.float32)

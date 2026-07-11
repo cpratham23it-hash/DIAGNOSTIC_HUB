@@ -1,7 +1,6 @@
 """
 Central app configuration. Every setting the app needs is declared here,
-typed, with sensible defaults where safe. As later steps add DB/auth/Google
-config, those fields get added to this same class — one place to look.
+typed, with sensible defaults where safe.
 """
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -22,6 +21,8 @@ class Settings(BaseSettings):
 
     upload_dir: str = "uploads"
     max_upload_size_bytes: int = 25 * 1024 * 1024  # 25 MB
+
+    gemini_api_key: str = ""  # set GEMINI_API_KEY in .env
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

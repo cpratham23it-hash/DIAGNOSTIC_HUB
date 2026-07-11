@@ -1,9 +1,10 @@
 """
-Diagnoses endpoints (Module 2b + Module 3 inference).
+Diagnoses endpoints (Module 2b + Module 3 inference + text analysis).
 
-POST /diagnoses/{id}/analyze  — run the trained audio model against this diagnosis
-                                 if it has an audio_file_id. Updates status and
-                                 primary_fault in place. Returns the updated diagnosis.
+POST /diagnoses/{id}/analyze  — runs available analysis:
+  - Audio: silence detection + ML model if available
+  - Text: TF-IDF matching against fault library
+  - Fusion: audio wins if confident, text fills in if audio inconclusive
 """
 
 import asyncio
@@ -112,6 +113,7 @@ def _doc_to_public(doc: dict) -> DiagnosisPublic:
         status=doc["status"],
         primary_fault=FaultGuess(**doc["primary_fault"]) if doc.get("primary_fault") else None,
         other_faults=[FaultGuess(**f) for f in doc.get("other_faults", [])],
+        analysis_message=doc.get("analysis_message"),
         created_at=doc["created_at"],
     )
 
@@ -122,11 +124,10 @@ async def analyze_diagnosis(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     """
-    Run the trained audio model against a saved diagnosis that has an
-    audio_file_id. Updates status → 'done' and fills in primary_fault.
-
-    Only covers fridge, ac, purifier (fan-type model).
-    Returns 503 gracefully if the model file hasn't been trained yet.
+    Multi-signal analysis:
+    - Audio (if present + supported appliance): silence detection + ML model
+    - Text (if present): TF-IDF matching against fault library
+    - Fusion: audio wins if confident, text fills in if audio inconclusive/absent
     """
     if not ObjectId.is_valid(diagnosis_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnosis not found.")
@@ -140,70 +141,133 @@ async def analyze_diagnosis(
     if doc is None or doc["user_id"] != current_user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Diagnosis not found.")
 
-    if not doc.get("audio_file_id"):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="This diagnosis has no audio file to analyze.",
-        )
-
     appliance_type = doc["appliance_type"]
-    if appliance_type not in AUDIO_SUPPORTED_APPLIANCES:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Audio analysis not available for '{appliance_type}'. "
-                   f"Supported: {sorted(AUDIO_SUPPORTED_APPLIANCES)}.",
-        )
-
-    from app.ml.inference import model_is_available
-    if not model_is_available(appliance_type):
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="The audio model hasn't been trained yet. Run  python ml/train.py  first.",
-        )
-
-    audio_file_doc = await db.files.find_one({"_id": ObjectId(doc["audio_file_id"])})
-    if audio_file_doc is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio file no longer exists.")
-
-    stored_path = Path(audio_file_doc["stored_path"])
-    if not stored_path.exists():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio file not found on disk.")
+    symptom_text = doc.get("symptom_text", "")
+    has_audio = bool(doc.get("audio_file_id"))
+    has_text = bool(symptom_text and symptom_text.strip())
 
     await db.diagnoses.update_one(
         {"_id": ObjectId(diagnosis_id)},
         {"$set": {"status": "processing"}},
     )
 
+    primary_fault = None
+    text_other_faults = []
+    analysis_message = "No inputs available for analysis."
+    anomaly_probability = None
+    frames_analyzed = 0
+
     try:
-        from app.ml.inference import get_classifier
-        audio_bytes = stored_path.read_bytes()
+        # ── AUDIO ─────────────────────────────────────────────────────────────
+        audio_result = None
+        if has_audio and appliance_type in AUDIO_SUPPORTED_APPLIANCES:
+            from app.ml.inference import model_is_available, get_classifier
+            if model_is_available(appliance_type):
+                audio_file_doc = await db.files.find_one({"_id": ObjectId(doc["audio_file_id"])})
+                if audio_file_doc:
+                    stored_path = Path(audio_file_doc["stored_path"])
+                    if stored_path.exists():
+                        audio_bytes = stored_path.read_bytes()
+                        loop = asyncio.get_event_loop()
+                        audio_result = await loop.run_in_executor(
+                            None,
+                            lambda: get_classifier(appliance_type).predict(
+                                audio_bytes, appliance_type=appliance_type
+                            ),
+                        )
+                        frames_analyzed = audio_result.frames_analyzed
+                        anomaly_probability = audio_result.anomaly_probability
+                        analysis_message = audio_result.message
 
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None,
-            lambda: get_classifier(appliance_type).predict(audio_bytes, appliance_type=appliance_type),
-        )
+                        if audio_result.is_anomalous and audio_result.fault_name:
+                            primary_fault = {
+                                "fault_name": audio_result.fault_name,
+                                "confidence": audio_result.confidence,
+                            }
 
-        primary_fault = None
-        if result.is_anomalous and result.fault_name:
-            primary_fault = {
-                "fault_name": result.fault_name,
-                "confidence": result.confidence,
-            }
+        # ── TEXT ──────────────────────────────────────────────────────────────
+        # Always run Gemini when text is present — even if audio found a fault.
+        # Audio sets primary_fault; Gemini enriches other_faults and message.
+        if has_text:
+            from app.services.text_analysis import analyze_symptom_text
+
+            fault_cursor = db.faults.find({"appliance_type": appliance_type})
+            fault_docs = await fault_cursor.to_list(length=100)
+
+            if fault_docs:
+                loop = asyncio.get_event_loop()
+                try:
+                    text_result = await loop.run_in_executor(
+                        None,
+                        lambda: analyze_symptom_text(
+                            symptom_text=symptom_text,
+                            appliance_type=appliance_type,
+                            fault_docs=fault_docs,
+                        ),
+                    )
+                except Exception as text_err:
+                    # Gemini failure (rate limit, network, parse) must never
+                    # crash the whole diagnosis — audio result still stands.
+                    print(f"[analyze] text analysis failed (non-fatal): {text_err}")
+                    text_result = None
+
+                if text_result and text_result.is_valid_query is False:
+                    # Only override message if audio didn't already find something
+                    if primary_fault is None:
+                        analysis_message = text_result.message
+                elif text_result and text_result.fault_name:
+                    text_other_faults = [
+                        {"fault_name": f.fault_name, "confidence": f.confidence}
+                        for f in text_result.other_faults
+                    ]
+                    if primary_fault is not None:
+                        # Audio already found the primary fault — use Gemini for
+                        # other_faults and enrich the message
+                        analysis_message = (
+                            f"{audio_result.message} "
+                            f"Your description also suggests: {text_result.fault_name} "
+                            f"({text_result.confidence:.0f}% match)."
+                        )
+                    else:
+                        # No audio fault — Gemini is the primary source
+                        primary_fault = {
+                            "fault_name": text_result.fault_name,
+                            "confidence": text_result.confidence,
+                        }
+                        if audio_result and not audio_result.is_anomalous:
+                            analysis_message = (
+                                f"Audio analysis was inconclusive. "
+                                f"Based on your description: {text_result.message}"
+                            )
+                        else:
+                            analysis_message = text_result.message
+                else:
+                    if primary_fault is None:
+                        analysis_message = (
+                            text_result.message if text_result else
+                            "Your description did not closely match any known fault patterns. "
+                            "Try describing the sound, smell, or behavior in more detail."
+                        )
+
+        update = {
+            "status": "done",
+            "primary_fault": primary_fault,
+            "other_faults": text_other_faults,
+            "analysis_message": analysis_message,
+        }
+        if anomaly_probability is not None:
+            update["anomaly_probability"] = anomaly_probability
+        if frames_analyzed:
+            update["frames_analyzed"] = frames_analyzed
 
         await db.diagnoses.update_one(
             {"_id": ObjectId(diagnosis_id)},
-            {"$set": {
-                "status": "done",
-                "primary_fault": primary_fault,
-                "other_faults": [],
-                "analysis_message": result.message,
-                "frames_analyzed": result.frames_analyzed,
-                "anomaly_probability": result.anomaly_probability,
-            }},
+            {"$set": update},
         )
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         await db.diagnoses.update_one(
             {"_id": ObjectId(diagnosis_id)},
             {"$set": {"status": "failed"}},

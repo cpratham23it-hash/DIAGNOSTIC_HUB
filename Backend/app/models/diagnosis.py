@@ -45,6 +45,7 @@ class DiagnosisPublic(BaseModel):
     status: DiagnosisStatus
     primary_fault: Optional[FaultGuess] = None
     other_faults: list[FaultGuess] = []
+    analysis_message: Optional[str] = None
     created_at: datetime
 
 
