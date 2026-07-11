@@ -719,17 +719,6 @@ input, textarea { font-family: inherit; color: inherit; }
 <script>
 'use strict';
 
-// Global error trap — writes any uncaught error into the page so it's visible
-// without needing the console. Temporary debugging aid.
-window.addEventListener('error', (e) => {
-  const b = document.getElementById('apiErrorBanner');
-  if (b) { b.style.display = 'block'; b.textContent = 'JS ERROR: ' + e.message + ' @ line ' + e.lineno; }
-});
-window.addEventListener('unhandledrejection', (e) => {
-  const b = document.getElementById('apiErrorBanner');
-  if (b) { b.style.display = 'block'; b.textContent = 'PROMISE ERROR: ' + (e.reason && e.reason.message ? e.reason.message : e.reason); }
-});
-
 const API_BASE = 'http://127.0.0.1:8000';
 
 // ── LIVE SERVER RELOAD PROTECTION ─────────────────────────────────────────
@@ -1039,7 +1028,7 @@ recBtn.addEventListener('click', async () => {
           type: mediaRecorder.mimeType || 'audio/webm',
         });
         const ext = (mediaRecorder.mimeType || '').includes('ogg') ? 'ogg' : 'webm';
-        const filename = `recording-${formatTime(recSeconds).replace(':', 'm')}s.${ext}`;
+        const filename = `recording-${formatTime(recSeconds)}.${ext}`;
 
         // Convert Blob to File so it has a .name property that passes
         // isAllowedAudioFile() and can be sent as a real multipart upload
@@ -1225,10 +1214,8 @@ async function analyzeDiagnosis(diagnosisId) {
       method: 'POST',
       signal: controller.signal,
     });
+  } finally {
     clearTimeout(timer);
-  } catch (err) {
-    clearTimeout(timer);
-    throw err;
   }
 
   if (!res.ok) {
@@ -1373,26 +1360,12 @@ async function runAnalysis() {
     setTimeout(() => {
       setStageState(rankStage, 'Cross-referencing fault library', 'done');
       stageText.textContent = 'Done.';
-      setTimeout(() => {
-        try {
-          showResults(analyzedDiagnosis);
-        } catch (e) {
-          console.error('[showResults] failed:', e);
-          stageText.textContent = 'Could not display results.';
-          showApiError('The result came back but could not be displayed: ' + (e.message || e));
-        }
-      }, 300);
+      setTimeout(() => showResults(analyzedDiagnosis), 300);
     }, 500);
 
   } catch (err) {
-    if (err && err.name === 'AbortError') {
-      stageText.textContent = 'Analysis timed out.';
-      showApiError('The analysis took too long. Your diagnosis was saved — the result may be ready. Try refreshing.');
-    } else {
-      stageText.textContent = 'Something went wrong.';
-      showApiError(err.message || 'Could not save your diagnosis. Check your connection and try again.');
-    }
-    console.error('[runAnalysis] error:', err);
+    stageText.textContent = 'Something went wrong.';
+    showApiError(err.message || 'Could not save your diagnosis. Check your connection and try again.');
   }
 }
 
@@ -1405,9 +1378,9 @@ async function runAnalysis() {
      - model not yet trained (503 from analyze endpoint)
 */
 function showResults(diagnosis) {
-  const applianceLabel = (state.applianceName || diagnosis.appliance_type || 'appliance').toLowerCase();
+  persistResult(diagnosis, state.applianceName, state.appliance);
   document.getElementById('resultApplianceLine').textContent =
-    `Based on your ${applianceLabel} diagnosis.`;
+    `Based on your ${state.applianceName.toLowerCase()} diagnosis.`;
 
   const isRealResult = diagnosis.status === 'done' && diagnosis.primary_fault;
   const isGeminiRejection = diagnosis.status === 'done' && !diagnosis.primary_fault && diagnosis.analysis_message;
@@ -1421,7 +1394,7 @@ function showResults(diagnosis) {
       diagnosis.analysis_message ||
       (state.audioFile
         ? 'Detected from your audio recording using the trained fault-detection model.'
-        : 'Detected from your description using Gemini-based text analysis.');
+        : 'Detected from your description using AI-powered text analysis.');
     document.getElementById('costValue').textContent = '—';
     document.getElementById('costRegion').textContent = 'Cost data coming in Module 6';
 
@@ -1459,10 +1432,7 @@ function showResults(diagnosis) {
 
   } else {
     // Placeholder — no real model result, use FAULT_DATA
-    const data = FAULT_DATA[state.appliance] || {
-      primary: 'No fault identified', conf: 0, desc: 'The analysis did not return a confident result. Try adding a clearer recording or a more detailed description.',
-      cost: '—', region: '', others: []
-    };
+    const data = FAULT_DATA[state.appliance];
     document.getElementById('primaryFault').textContent = data.primary;
     document.getElementById('primaryConf').textContent = data.conf + '% confidence';
     document.getElementById('primaryDesc').textContent = data.desc;
@@ -1487,10 +1457,9 @@ function showResults(diagnosis) {
 
   goToStep(4);
 
-  if (!isRealResult && !isGeminiRejection) {
+  if (!isRealResult) {
     setTimeout(() => {
       const data = FAULT_DATA[state.appliance];
-      if (!data) return;
       document.querySelectorAll('.cause-bar-fill').forEach((fill, idx) => {
         if (data.others[idx]) fill.style.width = data.others[idx][1] + '%';
       });
@@ -1521,8 +1490,18 @@ document.getElementById('restartBtn').addEventListener('click', () => {
   goToStep(1);
 });
 
-// Clear any stale persisted result on page load
-clearPersistedResult();
+// Restore step 4 only if this was a browser reload (not a fresh navigation)
+(function restoreIfReloaded() {
+  const isReload = performance.navigation
+    ? performance.navigation.type === 1
+    : performance.getEntriesByType('navigation')[0]?.type === 'reload';
+  if (!isReload) { clearPersistedResult(); return; }
+  const saved = loadPersistedResult();
+  if (!saved) return;
+  state.appliance = saved.appliance;
+  state.applianceName = saved.applianceName;
+  showResults(saved.diagnosis);
+})();
 </script>
 
 </body>
