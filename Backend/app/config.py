@@ -24,6 +24,8 @@ class Settings(BaseSettings):
 
     gemini_api_key: str = ""  # set GEMINI_API_KEY in .env
     deepseek_api_key: str = ""  # set DEEPSEEK_API_KEY in .env
+    groq_api_key: str = ""  # set GROQ_API_KEY in .env
+    cerebras_api_key: str = ""  # set CEREBRAS_API_KEY in .env
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

@@ -186,8 +186,7 @@ async def analyze_diagnosis(
                             }
 
         # ── TEXT ──────────────────────────────────────────────────────────────
-        # Always run Gemini when text is present — even if audio found a fault.
-        # Audio sets primary_fault; Gemini enriches other_faults and message.
+        # Always run text analysis when text is present — enriches audio results
         if has_text:
             from app.services.text_analysis import analyze_symptom_text
 
@@ -196,40 +195,38 @@ async def analyze_diagnosis(
 
             if fault_docs:
                 loop = asyncio.get_event_loop()
-                try:
-                    text_result = await loop.run_in_executor(
-                        None,
-                        lambda: analyze_symptom_text(
-                            symptom_text=symptom_text,
-                            appliance_type=appliance_type,
-                            fault_docs=fault_docs,
-                        ),
-                    )
-                except Exception as text_err:
-                    # Gemini failure (rate limit, network, parse) must never
-                    # crash the whole diagnosis — audio result still stands.
-                    print(f"[analyze] text analysis failed (non-fatal): {text_err}")
-                    text_result = None
+                text_result = await loop.run_in_executor(
+                    None,
+                    lambda: analyze_symptom_text(
+                        symptom_text=symptom_text,
+                        appliance_type=appliance_type,
+                        fault_docs=fault_docs,
+                    ),
+                )
 
                 if text_result and text_result.is_valid_query is False:
-                    # Only override message if audio didn't already find something
+                    # Text was gibberish/unrelated — keep audio result as-is
                     if primary_fault is None:
                         analysis_message = text_result.message
+
                 elif text_result and text_result.fault_name:
+                    # Text analysis found faults
                     text_other_faults = [
                         {"fault_name": f.fault_name, "confidence": f.confidence}
                         for f in text_result.other_faults
                     ]
+
                     if primary_fault is not None:
-                        # Audio already found the primary fault — use Gemini for
-                        # other_faults and enrich the message
-                        analysis_message = (
-                            f"{audio_result.message} "
-                            f"Your description also suggests: {text_result.fault_name} "
-                            f"({text_result.confidence:.0f}% match)."
-                        )
+                        # Audio already set primary — use text for description + other_faults
+                        analysis_message = text_result.message
+                        # Add text primary as an other_fault if different from audio primary
+                        if text_result.fault_name != primary_fault["fault_name"]:
+                            text_other_faults.insert(0, {
+                                "fault_name": text_result.fault_name,
+                                "confidence": text_result.confidence,
+                            })
                     else:
-                        # No audio fault — Gemini is the primary source
+                        # No audio fault — text is the primary source
                         primary_fault = {
                             "fault_name": text_result.fault_name,
                             "confidence": text_result.confidence,
@@ -241,10 +238,12 @@ async def analyze_diagnosis(
                             )
                         else:
                             analysis_message = text_result.message
-                else:
+
+                elif text_result:
+                    # Text ran but found nothing confident
                     if primary_fault is None:
                         analysis_message = (
-                            text_result.message if text_result else
+                            text_result.message or
                             "Your description did not closely match any known fault patterns. "
                             "Try describing the sound, smell, or behavior in more detail."
                         )
@@ -266,8 +265,6 @@ async def analyze_diagnosis(
         )
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         await db.diagnoses.update_one(
             {"_id": ObjectId(diagnosis_id)},
             {"$set": {"status": "failed"}},

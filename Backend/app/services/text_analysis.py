@@ -1,5 +1,6 @@
 """
-app/services/text_analysis.py — DeepSeek-powered appliance fault diagnosis.
+app/services/text_analysis.py — LLM-powered appliance fault diagnosis.
+Priority: Groq (primary) → DeepSeek (fallback) → Gemini (last resort).
 Returns a dynamic number of faults based on confidence thresholds.
 """
 
@@ -50,6 +51,31 @@ Rules:
 8. Respond with JSON only — no preamble, no explanation outside the JSON."""
 
 
+# In-memory cache: avoid re-hitting API for identical inputs
+_cache = {}
+_CACHE_MAX = 50
+
+
+def _cache_key(symptom_text: str, appliance_type: str) -> str:
+    return f"{appliance_type}::{symptom_text.strip().lower()}"
+
+
+def _build_user_prompt(symptom_text: str, appliance_type: str, fault_docs: list[dict]) -> str:
+    fault_lines = []
+    for doc in fault_docs:
+        symptoms = doc.get("typical_symptoms", [])
+        fault_lines.append(f"- {doc['name']}: {'; '.join(symptoms[:3])}")
+    fault_list = "\n".join(fault_lines) if fault_lines else "No faults available."
+
+    return f"""Appliance type: {appliance_type}
+User symptom description: "{symptom_text.strip()}"
+
+Known faults for this appliance type:
+{fault_list}
+
+Analyze the symptom and respond with JSON only."""
+
+
 def analyze_symptom_text(
     symptom_text: str,
     appliance_type: str,
@@ -59,30 +85,87 @@ def analyze_symptom_text(
         return None
 
     from app.config import settings
-    api_key = settings.deepseek_api_key.strip()
-    if not api_key:
-        # Fall back to Gemini key if DeepSeek not configured
-        api_key = settings.gemini_api_key.strip()
-        if not api_key:
-            return None
-        return _call_gemini(symptom_text, appliance_type, fault_docs, api_key)
 
-    fault_lines = []
-    for doc in fault_docs:
-        symptoms = doc.get("typical_symptoms", [])
-        fault_lines.append(f"- {doc['name']}: {'; '.join(symptoms[:3])}")
-    fault_list = "\n".join(fault_lines) if fault_lines else "No faults available."
+    # Check cache first — avoids burning API quota on repeated inputs
+    ck = _cache_key(symptom_text, appliance_type)
+    if ck in _cache:
+        print("[text_analysis] Cache hit — skipping API call.")
+        return _cache[ck]
 
-    user_prompt = f"""Appliance type: {appliance_type}
-User symptom description: "{symptom_text.strip()}"
+    user_prompt = _build_user_prompt(symptom_text, appliance_type, fault_docs)
 
-Known faults for this appliance type:
-{fault_list}
+    # Priority chain: Cerebras → Groq → DeepSeek → Gemini
+    cerebras_key = settings.cerebras_api_key.strip()
+    if cerebras_key:
+        result = _call_openai_compatible(
+            api_key=cerebras_key,
+            base_url="https://api.cerebras.ai/v1/chat/completions",
+            model="llama-3.3-70b",
+            user_prompt=user_prompt,
+            label="Cerebras",
+        )
+        if result is not None:
+            parsed = _parse_result(result, fault_docs, appliance_type)
+            _cache_store(ck, parsed)
+            return parsed
 
-Analyze the symptom and respond with JSON only."""
+    groq_key = settings.groq_api_key.strip()
+    if groq_key:
+        result = _call_openai_compatible(
+            api_key=groq_key,
+            base_url="https://api.groq.com/openai/v1/chat/completions",
+            model="llama-3.3-70b-versatile",
+            user_prompt=user_prompt,
+            label="Groq",
+        )
+        if result is not None:
+            parsed = _parse_result(result, fault_docs, appliance_type)
+            _cache_store(ck, parsed)
+            return parsed
 
+    deepseek_key = settings.deepseek_api_key.strip()
+    if deepseek_key:
+        result = _call_openai_compatible(
+            api_key=deepseek_key,
+            base_url="https://api.deepseek.com/v1/chat/completions",
+            model="deepseek-chat",
+            user_prompt=user_prompt,
+            label="DeepSeek",
+        )
+        if result is not None:
+            parsed = _parse_result(result, fault_docs, appliance_type)
+            _cache_store(ck, parsed)
+            return parsed
+
+    gemini_key = settings.gemini_api_key.strip()
+    if gemini_key:
+        result = _call_gemini(gemini_key, user_prompt)
+        if result is not None:
+            parsed = _parse_result(result, fault_docs, appliance_type)
+            _cache_store(ck, parsed)
+            return parsed
+
+    print("[text_analysis] No API keys configured or all providers failed.")
+    return None
+
+
+def _cache_store(key: str, result):
+    if result is not None:
+        if len(_cache) >= _CACHE_MAX:
+            _cache.pop(next(iter(_cache)))
+        _cache[key] = result
+
+
+def _call_openai_compatible(
+    api_key: str,
+    base_url: str,
+    model: str,
+    user_prompt: str,
+    label: str,
+) -> Optional[dict]:
+    """Call any OpenAI-compatible API (Groq, DeepSeek, etc.)."""
     payload = json.dumps({
-        "model": "deepseek-chat",
+        "model": model,
         "messages": [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt}
@@ -92,11 +175,9 @@ Analyze the symptom and respond with JSON only."""
         "stream": False
     }).encode()
 
-    url = "https://api.deepseek.com/v1/chat/completions"
-
     try:
         req = urllib.request.Request(
-            url,
+            base_url,
             data=payload,
             headers={
                 "Content-Type": "application/json",
@@ -108,48 +189,22 @@ Analyze the symptom and respond with JSON only."""
             data = json.loads(resp.read())
 
         raw_text = data["choices"][0]["message"]["content"].strip()
-
-        # Strip markdown fences if present
-        if raw_text.startswith("```"):
-            parts = raw_text.split("```")
-            raw_text = parts[1] if len(parts) > 1 else raw_text
-            if raw_text.startswith("json"):
-                raw_text = raw_text[4:]
-        raw_text = raw_text.strip()
-
-        result = json.loads(raw_text)
-        return _parse_result(result, fault_docs, appliance_type)
+        return _extract_json(raw_text)
 
     except Exception as e:
-        import traceback
-        print(f"[text_analysis] DeepSeek ERROR: {e}")
-        traceback.print_exc()
+        print(f"[text_analysis] {label} ERROR: {e}")
         return None
 
 
-def _call_gemini(symptom_text, appliance_type, fault_docs, api_key):
-    """Fallback to Gemini if DeepSeek key is not configured."""
-    fault_lines = []
-    for doc in fault_docs:
-        symptoms = doc.get("typical_symptoms", [])
-        fault_lines.append(f"- {doc['name']}: {'; '.join(symptoms[:3])}")
-    fault_list = "\n".join(fault_lines) if fault_lines else "No faults available."
-
-    user_prompt = f"""Appliance type: {appliance_type}
-User symptom description: "{symptom_text.strip()}"
-
-Known faults for this appliance type:
-{fault_list}
-
-Analyze the symptom and respond with JSON only."""
-
+def _call_gemini(api_key: str, user_prompt: str) -> Optional[dict]:
+    """Call Gemini API (different format from OpenAI-compatible)."""
     payload = json.dumps({
         "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
         "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
         "generationConfig": {"temperature": 0.1, "maxOutputTokens": 600}
     }).encode()
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key={api_key}"
 
     try:
         import time
@@ -170,25 +225,30 @@ Analyze the symptom and respond with JSON only."""
             return None
 
         raw_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        if raw_text.startswith("```"):
-            parts = raw_text.split("```")
-            raw_text = parts[1] if len(parts) > 1 else raw_text
-            if raw_text.startswith("json"):
-                raw_text = raw_text[4:]
-        raw_text = raw_text.strip()
-
-        result = json.loads(raw_text)
-        return _parse_result(result, fault_docs, appliance_type)
+        return _extract_json(raw_text)
 
     except Exception as e:
-        import traceback
         print(f"[text_analysis] Gemini ERROR: {e}")
-        traceback.print_exc()
+        return None
+
+
+def _extract_json(raw_text: str) -> Optional[dict]:
+    """Strip markdown fences and parse JSON."""
+    if raw_text.startswith("```"):
+        parts = raw_text.split("```")
+        raw_text = parts[1] if len(parts) > 1 else raw_text
+        if raw_text.startswith("json"):
+            raw_text = raw_text[4:]
+    raw_text = raw_text.strip()
+    try:
+        return json.loads(raw_text)
+    except json.JSONDecodeError:
+        print(f"[text_analysis] JSON parse failed: {raw_text[:200]}")
         return None
 
 
 def _parse_result(result: dict, fault_docs: list[dict], appliance_type: str) -> Optional[TextPrediction]:
-    """Parse the JSON result from either DeepSeek or Gemini into a TextPrediction."""
+    """Parse JSON result into TextPrediction."""
     known_names = {doc["name"] for doc in fault_docs}
 
     def resolve_fault_name(name):
@@ -201,7 +261,7 @@ def _parse_result(result: dict, fault_docs: list[dict], appliance_type: str) -> 
     is_valid = bool(result.get("is_valid_query", True))
     message = result.get("message", "Analysis complete.")
 
-    # New dynamic format: "faults" array ranked by confidence
+    # New dynamic format: "faults" array
     faults_list = result.get("faults", [])
 
     # Legacy format fallback: "primary_fault" + "other_faults"
@@ -217,10 +277,8 @@ def _parse_result(result: dict, fault_docs: list[dict], appliance_type: str) -> 
         if name and conf >= 10:
             resolved.append(FaultGuess(fault_name=name, confidence=conf))
 
-    # Sort by confidence descending
     resolved.sort(key=lambda f: f.confidence, reverse=True)
 
-    # Primary = highest confidence, if >= 50
     primary_name = None
     primary_conf = 0.0
     other_faults = []
@@ -228,14 +286,12 @@ def _parse_result(result: dict, fault_docs: list[dict], appliance_type: str) -> 
     if resolved and resolved[0].confidence >= 50:
         primary_name = resolved[0].fault_name
         primary_conf = resolved[0].confidence
-        # Deduplicate: everything else is other_faults
         seen = {primary_name}
         for f in resolved[1:]:
             if f.fault_name not in seen:
                 other_faults.append(f)
                 seen.add(f.fault_name)
     elif resolved:
-        # Nothing above 50 — no primary, but still return them all as other_faults
         other_faults = resolved
 
     return TextPrediction(
