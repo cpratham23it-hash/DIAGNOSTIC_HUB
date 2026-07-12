@@ -1,9 +1,10 @@
 """
 app/services/text_analysis.py — LLM-powered appliance fault diagnosis.
-Priority: Groq (primary) → DeepSeek (fallback) → Gemini (last resort).
+Priority: Groq → DeepSeek → Gemini (only Gemini supports image analysis).
 Returns a dynamic number of faults based on confidence thresholds.
 """
 
+import base64
 import json
 import urllib.request
 import urllib.error
@@ -29,7 +30,7 @@ class TextPrediction:
 
 SYSTEM_PROMPT = """You are an expert appliance fault diagnosis assistant for Diagnos, an AI-powered home appliance health platform.
 
-Your ONLY job is to analyze appliance symptom descriptions and identify the most likely faults from a provided list.
+Your ONLY job is to analyze appliance symptom descriptions and/or images and identify the most likely faults from a provided list.
 
 You must respond with a valid JSON object with exactly these fields:
 {
@@ -41,14 +42,34 @@ You must respond with a valid JSON object with exactly these fields:
 }
 
 Rules:
-1. If the query is NOT about an appliance symptom (e.g. math questions, general chat, weather, jokes, gibberish, random characters), set is_valid_query=false, faults=[], message="Please describe a symptom, sound, smell, or behavior you have noticed with your appliance."
+1. If the query is NOT about an appliance symptom (e.g. math questions, general chat, weather, jokes, gibberish, random characters, unrelated images), set is_valid_query=false, faults=[], message="Please describe a symptom or upload a photo of the appliance issue."
 2. If it IS about an appliance but you cannot identify a specific fault, set faults=[], message asking for more detail.
 3. Use EXACT fault names from the provided list. Do not invent new fault names.
-4. The "faults" array should contain ALL faults from the list that could plausibly match the symptoms, ranked by confidence (highest first). Do NOT cap at 3 — include every fault with confidence >= 10. Omit faults with confidence below 10.
+4. The "faults" array should contain ALL faults from the list that could plausibly match the symptoms/image, ranked by confidence (highest first). Include every fault with confidence >= 10.
 5. Confidence guidelines: 75-95 for strong match, 50-74 for moderate, 25-49 for weak but possible, 10-24 for unlikely but not impossible.
-6. Never mention other brands, products, or services.
-7. Never use markdown in the message field. Plain text only.
-8. Respond with JSON only — no preamble, no explanation outside the JSON."""
+6. When an image is provided, look for visible signs of damage: rust, corrosion, ice buildup, water leaks, burn marks, frayed wires, clogged filters, loose parts, unusual discoloration, mold, or physical damage.
+7. When both image and text are provided, combine evidence from both to produce a more accurate diagnosis.
+8. Never mention other brands, products, or services.
+9. Never use markdown in the message field. Plain text only.
+10. Respond with JSON only — no preamble, no explanation outside the JSON."""
+
+
+def _build_user_prompt(symptom_text: str, appliance_type: str, fault_docs: list[dict], has_image: bool = False) -> str:
+    fault_lines = []
+    for doc in fault_docs:
+        symptoms = doc.get("typical_symptoms", [])
+        fault_lines.append(f"- {doc['name']}: {'; '.join(symptoms[:3])}")
+    fault_list = "\n".join(fault_lines) if fault_lines else "No faults available."
+
+    parts = [f"Appliance type: {appliance_type}"]
+    if symptom_text and symptom_text.strip():
+        parts.append(f'User symptom description: "{symptom_text.strip()}"')
+    if has_image:
+        parts.append("An image of the appliance has been attached. Examine it for visible signs of damage, wear, leaks, ice buildup, corrosion, burn marks, or other anomalies.")
+    parts.append(f"\nKnown faults for this appliance type:\n{fault_list}")
+    parts.append("\nAnalyze all provided inputs and respond with JSON only.")
+
+    return "\n".join(parts)
 
 
 # In-memory cache: avoid re-hitting API for identical inputs
@@ -56,93 +77,81 @@ _cache = {}
 _CACHE_MAX = 50
 
 
-def _cache_key(symptom_text: str, appliance_type: str) -> str:
+def _cache_key(symptom_text: str, appliance_type: str, has_image: bool) -> str:
+    # Don't cache image requests (each image is unique)
+    if has_image:
+        return ""
     return f"{appliance_type}::{symptom_text.strip().lower()}"
-
-
-def _build_user_prompt(symptom_text: str, appliance_type: str, fault_docs: list[dict]) -> str:
-    fault_lines = []
-    for doc in fault_docs:
-        symptoms = doc.get("typical_symptoms", [])
-        fault_lines.append(f"- {doc['name']}: {'; '.join(symptoms[:3])}")
-    fault_list = "\n".join(fault_lines) if fault_lines else "No faults available."
-
-    return f"""Appliance type: {appliance_type}
-User symptom description: "{symptom_text.strip()}"
-
-Known faults for this appliance type:
-{fault_list}
-
-Analyze the symptom and respond with JSON only."""
 
 
 def analyze_symptom_text(
     symptom_text: str,
     appliance_type: str,
     fault_docs: list[dict],
+    image_bytes: Optional[bytes] = None,
+    image_content_type: Optional[str] = None,
 ) -> Optional[TextPrediction]:
-    if not symptom_text or not symptom_text.strip():
+    if not symptom_text and not image_bytes:
+        return None
+    if symptom_text and not symptom_text.strip() and not image_bytes:
         return None
 
     from app.config import settings
 
-    # Check cache first — avoids burning API quota on repeated inputs
-    ck = _cache_key(symptom_text, appliance_type)
-    if ck in _cache:
+    has_image = image_bytes is not None
+    symptom_text = symptom_text or ""
+
+    # Check cache (text-only requests)
+    ck = _cache_key(symptom_text, appliance_type, has_image)
+    if ck and ck in _cache:
         print("[text_analysis] Cache hit — skipping API call.")
         return _cache[ck]
 
-    user_prompt = _build_user_prompt(symptom_text, appliance_type, fault_docs)
+    user_prompt = _build_user_prompt(symptom_text, appliance_type, fault_docs, has_image)
 
-    # Priority chain: Cerebras → Groq → DeepSeek → Gemini
-    cerebras_key = settings.cerebras_api_key.strip()
-    if cerebras_key:
-        result = _call_openai_compatible(
-            api_key=cerebras_key,
-            base_url="https://api.cerebras.ai/v1/chat/completions",
-            model="llama-3.3-70b",
-            user_prompt=user_prompt,
-            label="Cerebras",
-        )
-        if result is not None:
-            parsed = _parse_result(result, fault_docs, appliance_type)
-            _cache_store(ck, parsed)
-            return parsed
+    # If image is present, only Gemini supports vision — skip text-only providers
+    if not has_image:
+        # Priority chain for text-only: Groq → DeepSeek → Gemini
+        groq_key = settings.groq_api_key.strip()
+        if groq_key:
+            result = _call_openai_compatible(
+                api_key=groq_key,
+                base_url="https://api.groq.com/openai/v1/chat/completions",
+                model="llama-3.3-70b-versatile",
+                user_prompt=user_prompt,
+                label="Groq",
+            )
+            if result is not None:
+                parsed = _parse_result(result, fault_docs, appliance_type)
+                _cache_store(ck, parsed)
+                return parsed
 
-    groq_key = settings.groq_api_key.strip()
-    if groq_key:
-        result = _call_openai_compatible(
-            api_key=groq_key,
-            base_url="https://api.groq.com/openai/v1/chat/completions",
-            model="llama-3.3-70b-versatile",
-            user_prompt=user_prompt,
-            label="Groq",
-        )
-        if result is not None:
-            parsed = _parse_result(result, fault_docs, appliance_type)
-            _cache_store(ck, parsed)
-            return parsed
+        deepseek_key = settings.deepseek_api_key.strip()
+        if deepseek_key:
+            result = _call_openai_compatible(
+                api_key=deepseek_key,
+                base_url="https://api.deepseek.com/v1/chat/completions",
+                model="deepseek-chat",
+                user_prompt=user_prompt,
+                label="DeepSeek",
+            )
+            if result is not None:
+                parsed = _parse_result(result, fault_docs, appliance_type)
+                _cache_store(ck, parsed)
+                return parsed
 
-    deepseek_key = settings.deepseek_api_key.strip()
-    if deepseek_key:
-        result = _call_openai_compatible(
-            api_key=deepseek_key,
-            base_url="https://api.deepseek.com/v1/chat/completions",
-            model="deepseek-chat",
-            user_prompt=user_prompt,
-            label="DeepSeek",
-        )
-        if result is not None:
-            parsed = _parse_result(result, fault_docs, appliance_type)
-            _cache_store(ck, parsed)
-            return parsed
-
+    # Gemini — supports both text and image
     gemini_key = settings.gemini_api_key.strip()
     if gemini_key:
-        result = _call_gemini(gemini_key, user_prompt)
+        result = _call_gemini(
+            gemini_key, user_prompt,
+            image_bytes=image_bytes,
+            image_content_type=image_content_type,
+        )
         if result is not None:
             parsed = _parse_result(result, fault_docs, appliance_type)
-            _cache_store(ck, parsed)
+            if ck:
+                _cache_store(ck, parsed)
             return parsed
 
     print("[text_analysis] No API keys configured or all providers failed.")
@@ -150,7 +159,7 @@ def analyze_symptom_text(
 
 
 def _cache_store(key: str, result):
-    if result is not None:
+    if key and result is not None:
         if len(_cache) >= _CACHE_MAX:
             _cache.pop(next(iter(_cache)))
         _cache[key] = result
@@ -196,11 +205,30 @@ def _call_openai_compatible(
         return None
 
 
-def _call_gemini(api_key: str, user_prompt: str) -> Optional[dict]:
-    """Call Gemini API (different format from OpenAI-compatible)."""
+def _call_gemini(
+    api_key: str,
+    user_prompt: str,
+    image_bytes: Optional[bytes] = None,
+    image_content_type: Optional[str] = None,
+) -> Optional[dict]:
+    """Call Gemini API with optional image (vision)."""
+
+    # Build the user content parts
+    user_parts = [{"text": user_prompt}]
+
+    if image_bytes:
+        mime = image_content_type or "image/jpeg"
+        b64 = base64.b64encode(image_bytes).decode("utf-8")
+        user_parts.insert(0, {
+            "inline_data": {
+                "mime_type": mime,
+                "data": b64,
+            }
+        })
+
     payload = json.dumps({
         "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
-        "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+        "contents": [{"role": "user", "parts": user_parts}],
         "generationConfig": {"temperature": 0.1, "maxOutputTokens": 600}
     }).encode()
 
@@ -212,7 +240,7 @@ def _call_gemini(api_key: str, user_prompt: str) -> Optional[dict]:
         data = None
         for attempt in range(3):
             try:
-                with urllib.request.urlopen(req, timeout=15) as resp:
+                with urllib.request.urlopen(req, timeout=30) as resp:
                     data = json.loads(resp.read())
                 break
             except urllib.error.HTTPError as he:
@@ -261,15 +289,13 @@ def _parse_result(result: dict, fault_docs: list[dict], appliance_type: str) -> 
     is_valid = bool(result.get("is_valid_query", True))
     message = result.get("message", "Analysis complete.")
 
-    # New dynamic format: "faults" array
     faults_list = result.get("faults", [])
 
-    # Legacy format fallback: "primary_fault" + "other_faults"
+    # Legacy format fallback
     if not faults_list and result.get("primary_fault"):
         faults_list = [{"fault_name": result["primary_fault"], "confidence": result.get("confidence", 0)}]
         faults_list.extend(result.get("other_faults", []))
 
-    # Resolve and filter
     resolved = []
     for item in faults_list:
         name = resolve_fault_name(item.get("fault_name"))
@@ -302,4 +328,3 @@ def _parse_result(result: dict, fault_docs: list[dict], appliance_type: str) -> 
         appliance_type=appliance_type,
         other_faults=other_faults,
     )
-

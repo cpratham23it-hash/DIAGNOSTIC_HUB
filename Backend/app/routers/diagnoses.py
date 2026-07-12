@@ -185,24 +185,42 @@ async def analyze_diagnosis(
                                 "confidence": audio_result.confidence,
                             }
 
-        # ── TEXT ──────────────────────────────────────────────────────────────
-        # Always run text analysis when text is present — enriches audio results
-        if has_text:
+        # ── TEXT + IMAGE ──────────────────────────────────────────────────────
+        # Run LLM analysis when text or image is present — enriches audio results
+        has_image = bool(doc.get("image_file_id"))
+        if has_text or has_image:
             from app.services.text_analysis import analyze_symptom_text
 
             fault_cursor = db.faults.find({"appliance_type": appliance_type})
             fault_docs = await fault_cursor.to_list(length=100)
 
+            # Read image bytes if uploaded
+            image_bytes = None
+            image_content_type = None
+            if has_image:
+                image_file_doc = await db.files.find_one({"_id": ObjectId(doc["image_file_id"])})
+                if image_file_doc:
+                    img_path = Path(image_file_doc["stored_path"])
+                    if img_path.exists():
+                        image_bytes = img_path.read_bytes()
+                        image_content_type = image_file_doc.get("content_type", "image/jpeg")
+
             if fault_docs:
                 loop = asyncio.get_event_loop()
-                text_result = await loop.run_in_executor(
-                    None,
-                    lambda: analyze_symptom_text(
-                        symptom_text=symptom_text,
-                        appliance_type=appliance_type,
-                        fault_docs=fault_docs,
-                    ),
-                )
+                try:
+                    text_result = await loop.run_in_executor(
+                        None,
+                        lambda: analyze_symptom_text(
+                            symptom_text=symptom_text or "",
+                            appliance_type=appliance_type,
+                            fault_docs=fault_docs,
+                            image_bytes=image_bytes,
+                            image_content_type=image_content_type,
+                        ),
+                    )
+                except Exception as text_err:
+                    print(f"[analyze] text/image analysis failed (non-fatal): {text_err}")
+                    text_result = None
 
                 if text_result and text_result.is_valid_query is False:
                     # Text was gibberish/unrelated — keep audio result as-is
