@@ -1271,14 +1271,15 @@ async function runAnalysis() {
 
   const willAnalyzeAudio = state.audioFile && AUDIO_SUPPORTED_APPLIANCES.has(state.appliance);
   const willAnalyzeText = state.symptomText.trim().length > 0;
-  const willAnalyze = willAnalyzeAudio || willAnalyzeText;
+  const willAnalyzeImage = !!state.image;
+  const willAnalyze = willAnalyzeAudio || willAnalyzeText || willAnalyzeImage;
 
   const stages = [];
   if (state.image) stages.push({ key: 'image', label: 'Reading image for visible damage' });
   if (state.audioFile) stages.push({ key: 'audio', label: 'Uploading audio recording' });
   if (state.symptomText.trim()) stages.push({ key: 'text', label: 'Parsing symptom description' });
   stages.push({ key: 'save', label: 'Saving your diagnosis' });
-  if (willAnalyze) stages.push({ key: 'analyze', label: willAnalyzeAudio ? 'Running audio fault detection' : 'Analyzing your description' });
+  if (willAnalyze) stages.push({ key: 'analyze', label: willAnalyzeAudio ? 'Running audio fault detection' : willAnalyzeImage ? 'Analyzing your image' : 'Analyzing your description' });
   stages.push({ key: 'rank', label: 'Cross-referencing fault library' });
 
   const stageList = document.getElementById('stageList');
@@ -1337,7 +1338,7 @@ async function runAnalysis() {
 
     if (willAnalyze) {
       const analyzeStage = document.getElementById('stage-analyze');
-      const label = willAnalyzeAudio ? 'Running audio fault detection' : 'Analyzing your description';
+      const label = willAnalyzeAudio ? 'Running audio fault detection' : willAnalyzeImage ? 'Analyzing your image' : 'Analyzing your description';
       setStageState(analyzeStage, label, 'active');
       stageText.textContent = label + '…';
 
@@ -1394,7 +1395,9 @@ function showResults(diagnosis) {
       diagnosis.analysis_message ||
       (state.audioFile
         ? 'Detected from your audio recording using the trained fault-detection model.'
-        : 'Detected from your description using AI-powered text analysis.');
+        : state.image && !state.audioFile
+          ? 'Detected from your uploaded image using AI-powered visual analysis.'
+          : 'Detected from your description using AI-powered text analysis.');
     document.getElementById('costValue').textContent = '—';
     document.getElementById('costRegion').textContent = 'Cost data coming in Module 6';
 
