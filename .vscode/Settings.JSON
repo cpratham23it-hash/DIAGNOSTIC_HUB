@@ -1,4 +1,22 @@
 {
   "python.analysis.extraPaths": ["./backend"],
-  "python.analysis.autoSearchPaths": true
+  "python.analysis.autoSearchPaths": true,
+  "liveServer.settings.ignoreFiles": [
+    "**/*.py",
+    "**/*.json",
+    "**/*.npy",
+    "**/*.keras",
+    "**/*.env",
+    "**/*.txt",
+    "**/*.webm",
+    "**/*.wav",
+    "**/*.mp3",
+    "**/*.ogg",
+    "**/*.bin",
+    "**/uploads/**",
+    "**/backend/**",
+    "**/ml/**",
+    "**/__pycache__/**",
+    ".git/**"
+  ]
 }
