@@ -302,3 +302,5 @@ def _parse_result(result: dict, fault_docs: list[dict], appliance_type: str) -> 
         appliance_type=appliance_type,
         other_faults=other_faults,
     )
+
+''''''
