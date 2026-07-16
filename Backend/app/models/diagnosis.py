@@ -46,6 +46,8 @@ class DiagnosisPublic(BaseModel):
     primary_fault: Optional[FaultGuess] = None
     other_faults: list[FaultGuess] = []
     analysis_message: Optional[str] = None
+    cost_min: Optional[float] = None
+    cost_max: Optional[float] = None
     created_at: datetime
 
 

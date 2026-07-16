@@ -114,6 +114,8 @@ def _doc_to_public(doc: dict) -> DiagnosisPublic:
         primary_fault=FaultGuess(**doc["primary_fault"]) if doc.get("primary_fault") else None,
         other_faults=[FaultGuess(**f) for f in doc.get("other_faults", [])],
         analysis_message=doc.get("analysis_message"),
+        cost_min=doc.get("cost_min"),
+        cost_max=doc.get("cost_max"),
         created_at=doc["created_at"],
     )
 
@@ -266,11 +268,26 @@ async def analyze_diagnosis(
                             "Try describing the sound, smell, or behavior in more detail."
                         )
 
+        # ── COST ESTIMATION ───────────────────────────────────────────────────
+        # Look up the matched fault's cost range from the faults collection
+        cost_min = None
+        cost_max = None
+        if primary_fault:
+            fault_doc = await db.faults.find_one({
+                "appliance_type": appliance_type,
+                "name": primary_fault["fault_name"],
+            })
+            if fault_doc:
+                cost_min = fault_doc.get("typical_cost_min")
+                cost_max = fault_doc.get("typical_cost_max")
+
         update = {
             "status": "done",
             "primary_fault": primary_fault,
             "other_faults": text_other_faults,
             "analysis_message": analysis_message,
+            "cost_min": cost_min,
+            "cost_max": cost_max,
         }
         if anomaly_probability is not None:
             update["anomaly_probability"] = anomaly_probability
