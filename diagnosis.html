@@ -1398,8 +1398,14 @@ function showResults(diagnosis) {
         : state.image && !state.audioFile
           ? 'Detected from your uploaded image using AI-powered visual analysis.'
           : 'Detected from your description using AI-powered text analysis.');
-    document.getElementById('costValue').textContent = '—';
-    document.getElementById('costRegion').textContent = 'Cost data coming in Module 6';
+    if (diagnosis.cost_min != null && diagnosis.cost_max != null) {
+      document.getElementById('costValue').textContent =
+        '₹' + Number(diagnosis.cost_min).toLocaleString('en-IN') + '–₹' + Number(diagnosis.cost_max).toLocaleString('en-IN');
+      document.getElementById('costRegion').textContent = 'Fair price range based on fault type and regional data';
+    } else {
+      document.getElementById('costValue').textContent = '—';
+      document.getElementById('costRegion').textContent = 'Cost estimate not available for this fault';
+    }
 
     const causeList = document.getElementById('causeList');
     const others = diagnosis.other_faults || [];
@@ -1430,7 +1436,7 @@ function showResults(diagnosis) {
     document.getElementById('primaryConf').textContent = 'Inconclusive';
     document.getElementById('primaryDesc').textContent = diagnosis.analysis_message;
     document.getElementById('costValue').textContent = '—';
-    document.getElementById('costRegion').textContent = '';
+    document.getElementById('costRegion').textContent = 'No cost estimate — fault not identified';
     document.getElementById('causeList').innerHTML = '<div class="cause-row" style="color:var(--muted);font-size:13px;padding:10px 0;">Try describing the sound, smell, or behavior your appliance is showing in more detail.</div>';
 
   } else {
