@@ -1206,17 +1206,9 @@ async function uploadAudioFile(file) {
 }
 
 async function analyzeDiagnosis(diagnosisId) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 90000); // 90s for TF load
-  let res;
-  try {
-    res = await DiagnosAuth.authFetch(`${API_BASE}/diagnoses/${diagnosisId}/analyze`, {
-      method: 'POST',
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timer);
-  }
+  const res = await DiagnosAuth.authFetch(`${API_BASE}/diagnoses/${diagnosisId}/analyze`, {
+    method: 'POST',
+  });
 
   if (!res.ok) {
     // Non-fatal — 422 (unsupported appliance) and 503 (model not trained)
@@ -1270,16 +1262,13 @@ async function runAnalysis() {
   hideApiError();
 
   const willAnalyzeAudio = state.audioFile && AUDIO_SUPPORTED_APPLIANCES.has(state.appliance);
-  const willAnalyzeText = state.symptomText.trim().length > 0;
-  const willAnalyzeImage = !!state.image;
-  const willAnalyze = willAnalyzeAudio || willAnalyzeText || willAnalyzeImage;
 
   const stages = [];
   if (state.image) stages.push({ key: 'image', label: 'Reading image for visible damage' });
   if (state.audioFile) stages.push({ key: 'audio', label: 'Uploading audio recording' });
   if (state.symptomText.trim()) stages.push({ key: 'text', label: 'Parsing symptom description' });
   stages.push({ key: 'save', label: 'Saving your diagnosis' });
-  if (willAnalyze) stages.push({ key: 'analyze', label: willAnalyzeAudio ? 'Running audio fault detection' : willAnalyzeImage ? 'Analyzing your image' : 'Analyzing your description' });
+  if (willAnalyzeAudio) stages.push({ key: 'analyze', label: 'Running audio fault detection' });
   stages.push({ key: 'rank', label: 'Cross-referencing fault library' });
 
   const stageList = document.getElementById('stageList');
@@ -1336,21 +1325,20 @@ async function runAnalysis() {
     // with an actual inference call.
     let analyzedDiagnosis = diagnosis;
 
-    if (willAnalyze) {
+    if (willAnalyzeAudio) {
       const analyzeStage = document.getElementById('stage-analyze');
-      const label = willAnalyzeAudio ? 'Running audio fault detection' : willAnalyzeImage ? 'Analyzing your image' : 'Analyzing your description';
-      setStageState(analyzeStage, label, 'active');
-      stageText.textContent = label + '…';
+      setStageState(analyzeStage, 'Running audio fault detection', 'active');
+      stageText.textContent = 'Running audio fault detection…';
 
       const result = await analyzeDiagnosis(diagnosis.id);
 
       if (result.error) {
         // Model not trained yet (503) or appliance not supported (422) —
         // not a hard failure, just fall back to placeholder results.
-        setStageState(analyzeStage, label, 'done');
+        setStageState(analyzeStage, 'Running audio fault detection', 'done');
       } else {
         analyzedDiagnosis = result;
-        setStageState(analyzeStage, label, 'done');
+        setStageState(analyzeStage, 'Running audio fault detection', 'done');
       }
     }
 
@@ -1379,12 +1367,10 @@ async function runAnalysis() {
      - model not yet trained (503 from analyze endpoint)
 */
 function showResults(diagnosis) {
-  persistResult(diagnosis, state.applianceName, state.appliance);
   document.getElementById('resultApplianceLine').textContent =
     `Based on your ${state.applianceName.toLowerCase()} diagnosis.`;
 
   const isRealResult = diagnosis.status === 'done' && diagnosis.primary_fault;
-  const isGeminiRejection = diagnosis.status === 'done' && !diagnosis.primary_fault && diagnosis.analysis_message;
 
   if (isRealResult) {
     // Real model output — show what the model actually found
@@ -1392,52 +1378,15 @@ function showResults(diagnosis) {
     document.getElementById('primaryFault').textContent = fault.fault_name;
     document.getElementById('primaryConf').textContent = fault.confidence.toFixed(1) + '% confidence';
     document.getElementById('primaryDesc').textContent =
-      diagnosis.analysis_message ||
-      (state.audioFile
-        ? 'Detected from your audio recording using the trained fault-detection model.'
-        : state.image && !state.audioFile
-          ? 'Detected from your uploaded image using AI-powered visual analysis.'
-          : 'Detected from your description using AI-powered text analysis.');
-    if (diagnosis.cost_min != null && diagnosis.cost_max != null) {
-      document.getElementById('costValue').textContent =
-        '₹' + Number(diagnosis.cost_min).toLocaleString('en-IN') + '–₹' + Number(diagnosis.cost_max).toLocaleString('en-IN');
-      document.getElementById('costRegion').textContent = 'Fair price range based on fault type and regional data';
-    } else {
-      document.getElementById('costValue').textContent = '—';
-      document.getElementById('costRegion').textContent = 'Cost estimate not available for this fault';
-    }
+      'Detected from your audio recording using the trained fault-detection model.';
+    document.getElementById('costValue').textContent = '—';
+    document.getElementById('costRegion').textContent = 'Cost data coming in Module 6';
 
     const causeList = document.getElementById('causeList');
-    const others = diagnosis.other_faults || [];
-    if (others.length > 0) {
-      causeList.innerHTML = '';
-      others.forEach((f, idx) => {
-        const row = document.createElement('div');
-        row.className = 'cause-row';
-        row.innerHTML = `
-          <span class="cause-rank">${String(idx + 2).padStart(2, '0')}</span>
-          <span class="cause-name">${escapeHtml(f.fault_name)}</span>
-          <span class="cause-bar-track"><span class="cause-bar-fill" style="width:0%"></span></span>
-          <span class="cause-pct">${f.confidence.toFixed(0)}%</span>
-        `;
-        causeList.appendChild(row);
-      });
-      setTimeout(() => {
-        causeList.querySelectorAll('.cause-bar-fill').forEach((fill, idx) => {
-          if (others[idx]) fill.style.width = others[idx].confidence.toFixed(0) + '%';
-        });
-      }, 150);
-    } else {
-      causeList.innerHTML = '<div class="cause-row" style="color:var(--muted);font-size:13px;padding:10px 0;">No alternative faults identified.</div>';
-    }
-
-  } else if (isGeminiRejection) {
-    document.getElementById('primaryFault').textContent = 'No fault identified';
-    document.getElementById('primaryConf').textContent = 'Inconclusive';
-    document.getElementById('primaryDesc').textContent = diagnosis.analysis_message;
-    document.getElementById('costValue').textContent = '—';
-    document.getElementById('costRegion').textContent = 'No cost estimate — fault not identified';
-    document.getElementById('causeList').innerHTML = '<div class="cause-row" style="color:var(--muted);font-size:13px;padding:10px 0;">Try describing the sound, smell, or behavior your appliance is showing in more detail.</div>';
+    causeList.innerHTML = `
+      <div class="cause-row" style="color:var(--muted);font-size:13px;padding:10px 0;">
+        Multi-fault ranking requires the full ML ensemble (Module 3 complete) — coming soon.
+      </div>`;
 
   } else {
     // Placeholder — no real model result, use FAULT_DATA
@@ -1499,12 +1448,8 @@ document.getElementById('restartBtn').addEventListener('click', () => {
   goToStep(1);
 });
 
-// Restore step 4 only if this was a browser reload (not a fresh navigation)
+// Restore step 4 if a Live Server reload happened after a completed diagnosis
 (function restoreIfReloaded() {
-  const isReload = performance.navigation
-    ? performance.navigation.type === 1
-    : performance.getEntriesByType('navigation')[0]?.type === 'reload';
-  if (!isReload) { clearPersistedResult(); return; }
   const saved = loadPersistedResult();
   if (!saved) return;
   state.appliance = saved.appliance;
