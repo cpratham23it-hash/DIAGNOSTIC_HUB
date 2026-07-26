@@ -16,18 +16,13 @@ Routers are added here as they're built in later steps:
 
 from contextlib import asynccontextmanager
 
-import os
-# Ensure ffmpeg is on PATH so librosa/audioread can decode WebM recordings
-_FFMPEG_BIN = r"C:\Users\Pratham\AppData\Local\Microsoft\WinGet\Packages\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\ffmpeg-8.1.2-full_build\bin"
-if os.path.isdir(_FFMPEG_BIN):
-    os.environ["PATH"] = _FFMPEG_BIN + os.pathsep + os.environ.get("PATH", "")
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import connect_to_mongo, close_mongo_connection
 from app.routers import auth, diagnoses, faults, files, symptoms, system, appliances
+from app.routers import technicians_router, bookings_router
 
 
 @asynccontextmanager
@@ -72,3 +67,5 @@ app.include_router(diagnoses.router)
 app.include_router(faults.router)
 app.include_router(symptoms.router)
 app.include_router(appliances.router)
+app.include_router(technicians_router.router)
+app.include_router(bookings_router.router)
