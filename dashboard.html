@@ -368,16 +368,14 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
         <svg viewBox="0 0 24 24" fill="none"><path d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.97-4.03 9-9 9-1.5 0-2.91-.37-4.15-1.02L3 21l1.05-3.5C3.38 16.2 3 14.65 3 13c0-4.97 4.03-9 9-9s9 4.03 9 9Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Symptom checker
       </a>
-      <span class="sb-link disabled" aria-disabled="true">
+      <a href="history.html" class="sb-link">
         <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5a2 2 0 0 1 2-2h8l6 6v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" stroke="currentColor" stroke-width="1.6"/><path d="M14 3v6h6" stroke="currentColor" stroke-width="1.6"/></svg>
         History
-        <span class="sb-link-soon">SOON</span>
-      </span>
-      <span class="sb-link disabled" aria-disabled="true">
+      </a>
+      <a href="technicians.html" class="sb-link">
         <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 20c0-3.5 3-6 7.5-6s7.5 2.5 7.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
         Technicians
-        <span class="sb-link-soon">SOON</span>
-      </span>
+      </a>
 
       <div class="sb-section-label">Account</div>
       <span class="sb-link disabled" aria-disabled="true">
@@ -456,21 +454,8 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
       <div id="applianceLoadingState" style="grid-column:1/-1;color:var(--dim);font-size:13.5px;padding:8px 0;">Loading…</div>
     </div>
 
-    <div class="section-row">
-      <h2>Recent activity</h2>
-    </div>
-
-    <div class="history-table" id="historyTable">
-      <div class="history-row head">
-        <span>Appliance</span>
-        <span>Result</span>
-        <span>Confidence</span>
-        <span>Date</span>
-        <span>Status</span>
-      </div>
-      <div id="historyRows">
-        <div class="history-row"><span style="color:var(--dim);">Loading…</span></div>
-      </div>
+    <div class="section-row" style="margin-top:8px;">
+      <a href="history.html" style="color:var(--accent);font-size:13.5px;font-weight:600;">View full history →</a>
     </div>
 
   </main>
@@ -668,7 +653,6 @@ document.getElementById('addApplianceSubmitBtn').addEventListener('click', async
 async function loadDashboardData() {
   const subline       = document.getElementById('dashSubline');
   const applianceGrid = document.getElementById('applianceGrid');
-  const historyRows   = document.getElementById('historyRows');
 
   try {
     const [appliancesRes, diagnosesRes, sessionsRes] = await Promise.all([
@@ -733,45 +717,6 @@ async function loadDashboardData() {
     addCard.addEventListener('click', openAddModal);
     applianceGrid.appendChild(addCard);
 
-    // ── History ──
-    const combined = [];
-    diagnoses.forEach((d) => {
-      const meta = APPLIANCE_META[d.appliance_type] || { icon: '🔧', name: d.appliance_type };
-      combined.push({
-        icon: meta.icon, name: meta.name,
-        result: d.primary_fault ? d.primary_fault.fault_name : 'Awaiting analysis',
-        confidence: d.primary_fault ? `${d.primary_fault.confidence}%` : '—',
-        date: d.created_at, statusLabel: d.status.toUpperCase(),
-      });
-    });
-    sessions.forEach((s) => {
-      const meta = APPLIANCE_META[s.appliance_type] || { icon: '🔧', name: s.appliance_type };
-      combined.push({
-        icon: meta.icon, name: meta.name,
-        result: (s.status === 'completed' && s.result?.length) ? s.result[0].fault_name : 'In progress',
-        confidence: (s.status === 'completed' && s.result?.length) ? `${s.result[0].confidence}%` : '—',
-        date: s.updated_at, statusLabel: s.status === 'completed' ? 'COMPLETED' : 'IN PROGRESS',
-      });
-    });
-    combined.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    if (combined.length === 0) {
-      historyRows.innerHTML = `<div class="history-row"><span style="color:var(--dim);grid-column:1/-1;">Nothing yet — run a diagnosis to see activity here.</span></div>`;
-    } else {
-      historyRows.innerHTML = '';
-      combined.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'history-row';
-        row.innerHTML = `
-          <span class="hist-appliance">${item.icon} ${escapeHtml(item.name)}</span>
-          <span class="hist-fault">${escapeHtml(item.result)}</span>
-          <span class="hist-conf">${escapeHtml(item.confidence)}</span>
-          <span class="hist-date">${formatDate(item.date)}</span>
-          <span class="hist-status status-open">${escapeHtml(item.statusLabel)}</span>
-        `;
-        historyRows.appendChild(row);
-      });
-    }
 
   } catch (err) {
     subline.textContent = 'Could not load your activity.';
@@ -779,7 +724,6 @@ async function loadDashboardData() {
     document.getElementById('statDiagnoses').textContent  = '—';
     document.getElementById('statBooked').textContent     = '—';
     applianceGrid.innerHTML = `<div style="grid-column:1/-1;color:var(--red);font-size:13px;">${escapeHtml(err.message || 'Something went wrong.')}</div>`;
-    historyRows.innerHTML = `<div class="history-row"><span style="color:var(--red);">${escapeHtml(err.message || 'Could not load activity.')}</span></div>`;
   }
 }
 

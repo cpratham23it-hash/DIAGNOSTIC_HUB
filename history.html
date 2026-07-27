@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>History — Diagnos</title>
+<style>
+:root {
+  --bg: #0C0C0C; --surface: #161616; --surface-2: #1E1E1E;
+  --border: #2A2A2A; --text: #E8E8E8; --dim: #777; --muted: #555;
+  --accent: #00E5A0; --accent-dim: rgba(0,229,160,.12);
+  --red: #FF5C5C; --ff-display: 'Syne', sans-serif;
+  --ff-body: 'Inter', system-ui, sans-serif;
+  --ff-mono: 'JetBrains Mono', monospace;
+  --ease: cubic-bezier(.22,1,.36,1);
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:var(--ff-body); font-size:15px; line-height:1.6; min-height:100vh; }
+a { color:inherit; text-decoration:none; }
+
+.layout { display:flex; min-height:100vh; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width:240px; background:var(--surface); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; position:fixed; top:0; bottom:0; z-index:10; padding:24px 16px;
+}
+.sb-logo { display:flex; align-items:center; gap:8px; font-family:var(--ff-display); font-size:18px; font-weight:700; margin-bottom:28px; }
+.sb-logo svg { width:28px; height:28px; }
+.sb-link {
+  display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px;
+  font-size:14px; color:var(--dim); transition:background .15s, color .15s; cursor:pointer;
+}
+.sb-link:hover { background:var(--surface-2); color:var(--text); }
+.sb-link.active { background:var(--accent-dim); color:var(--accent); font-weight:600; }
+.sb-link svg { width:18px; height:18px; flex-shrink:0; }
+.sb-link-soon { font-size:9px; font-weight:700; letter-spacing:.08em; color:var(--muted); background:var(--surface-2); padding:2px 6px; border-radius:4px; margin-left:auto; }
+.sb-link.disabled { pointer-events:none; opacity:.45; cursor:default; }
+.sb-section-label { font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--muted); text-transform:uppercase; padding:20px 12px 6px; }
+
+/* ── MAIN ── */
+main { margin-left:240px; flex:1; padding:48px 56px; max-width:1100px; }
+h1 { font-family:var(--ff-display); font-size:32px; font-weight:800; margin-bottom:8px; }
+.subtitle { color:var(--dim); font-size:14px; margin-bottom:32px; }
+
+/* ── TABS ── */
+.tab-row { display:flex; gap:4px; margin-bottom:24px; border-bottom:1px solid var(--border); }
+.tab-btn {
+  padding:10px 20px; font-size:13px; font-weight:600; color:var(--dim);
+  background:none; border:none; cursor:pointer; border-bottom:2px solid transparent;
+  transition:color .15s, border-color .15s; font-family:var(--ff-body);
+}
+.tab-btn:hover { color:var(--text); }
+.tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+/* ── TABLE ── */
+.history-table { border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.history-row {
+  display:grid; grid-template-columns:1.6fr 1.4fr 0.8fr 1fr 0.7fr;
+  padding:13px 20px; gap:12px; align-items:center; border-bottom:1px solid var(--border);
+  font-size:13.5px;
+}
+.history-row:last-child { border-bottom:none; }
+.history-row.head {
+  font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--muted); background:var(--surface); padding:11px 20px;
+}
+.history-row:not(.head):hover { background:var(--surface-2); }
+.hist-fault { font-weight:600; }
+.hist-conf { font-family:var(--ff-mono); font-size:12px; }
+.hist-date { color:var(--dim); font-size:12px; }
+.hist-status { font-family:var(--ff-mono); font-size:10px; font-weight:700; letter-spacing:.06em; }
+.status-done { color:var(--accent); }
+.status-pending { color:#F5A623; }
+.status-failed { color:var(--red); }
+
+.booking-row {
+  display:grid; grid-template-columns:1.4fr 1.2fr 1fr 1fr 0.8fr 0.7fr;
+  padding:13px 20px; gap:12px; align-items:center; border-bottom:1px solid var(--border);
+  font-size:13.5px;
+}
+.booking-row:last-child { border-bottom:none; }
+.booking-row.head {
+  font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--muted); background:var(--surface); padding:11px 20px;
+}
+.booking-row:not(.head):hover { background:var(--surface-2); }
+
+.empty-state { color:var(--dim); font-size:13.5px; padding:24px 20px; }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+
+@media (max-width:700px) {
+  .sidebar { display:none; }
+  main { margin-left:0; padding:24px 16px; }
+  .history-row { grid-template-columns:1.6fr 1fr 0.8fr; }
+  .history-row .hist-conf, .history-row .hist-date { display:none; }
+  .booking-row { grid-template-columns:1fr 1fr 0.8fr; }
+}
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sb-logo">
+      <svg viewBox="0 0 22 22" fill="none"><path d="M2 11L6 11L8 5L11 17L14 8L16 11L20 11" stroke="#060E09" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none" style="stroke:var(--accent)"/></svg>
+      Diagnos
+    </div>
+    <nav>
+      <a href="dashboard.html" class="sb-link">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.6"/></svg>
+        Dashboard
+      </a>
+      <a href="diagnosis.html" class="sb-link">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v4l2.5 2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        New diagnosis
+      </a>
+      <a href="symptom-checker.html" class="sb-link">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.97-4.03 9-9 9-1.5 0-2.91-.37-4.15-1.02L3 21l1.05-3.5C3.38 16.2 3 14.65 3 13c0-4.97 4.03-9 9-9s9 4.03 9 9Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Symptom checker
+      </a>
+      <a href="history.html" class="sb-link active">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M4 19V5a2 2 0 0 1 2-2h8l6 6v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" stroke="currentColor" stroke-width="1.6"/><path d="M14 3v6h6" stroke="currentColor" stroke-width="1.6"/></svg>
+        History
+      </a>
+      <a href="technicians.html" class="sb-link">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="3.5" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 20c0-3.5 3-6 7.5-6s7.5 2.5 7.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        Technicians
+      </a>
+
+      <div class="sb-section-label">Account</div>
+      <span class="sb-link disabled" aria-disabled="true">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 13a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V19a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H4a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H10a1.65 1.65 0 0 0 1-1.51V4a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V10a1.65 1.65 0 0 0 1.51 1H20a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="1.4"/></svg>
+        Settings
+        <span class="sb-link-soon">SOON</span>
+      </span>
+    </nav>
+  </aside>
+
+  <main>
+    <h1>History</h1>
+    <p class="subtitle">Your past diagnoses and technician bookings.</p>
+
+    <div class="tab-row">
+      <button class="tab-btn active" data-tab="diagnoses">Diagnoses</button>
+      <button class="tab-btn" data-tab="bookings">Bookings</button>
+    </div>
+
+    <!-- DIAGNOSES TAB -->
+    <div class="tab-content active" id="tab-diagnoses">
+      <div class="history-table">
+        <div class="history-row head">
+          <span>Appliance</span>
+          <span>Result</span>
+          <span>Confidence</span>
+          <span>Date</span>
+          <span>Status</span>
+        </div>
+        <div id="diagnosisRows">
+          <div class="history-row"><span class="empty-state">Loading…</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BOOKINGS TAB -->
+    <div class="tab-content" id="tab-bookings">
+      <div class="history-table">
+        <div class="booking-row head">
+          <span>Technician</span>
+          <span>Fault</span>
+          <span>Appliance</span>
+          <span>Slot</span>
+          <span>Price</span>
+          <span>Status</span>
+        </div>
+        <div id="bookingRows">
+          <div class="booking-row"><span class="empty-state">Loading…</span></div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="Auth.js"></script>
+<script>DiagnosAuth.requireSignIn('history.html');</script>
+<script>
+'use strict';
+
+const API_BASE = 'http://127.0.0.1:8000';
+const APPLIANCE_META = {
+  fridge:   { icon: '❄️', name: 'Refrigerator' },
+  ac:       { icon: '❄️', name: 'Air Conditioner' },
+  washer:   { icon: '🧹', name: 'Washing Machine' },
+  purifier: { icon: '💨', name: 'Air Purifier' },
+  camera:   { icon: '📷', name: 'Security Camera' },
+};
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
+function formatDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    + ' ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function statusClass(s) {
+  if (s === 'done' || s === 'completed' || s === 'confirmed') return 'status-done';
+  if (s === 'pending' || s === 'in_progress') return 'status-pending';
+  if (s === 'failed' || s === 'cancelled') return 'status-failed';
+  return '';
+}
+
+// Tab switching
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+async function loadHistory() {
+  const diagnosisRows = document.getElementById('diagnosisRows');
+  const bookingRows = document.getElementById('bookingRows');
+
+  try {
+    const [diagRes, sessionRes, bookingRes] = await Promise.all([
+      DiagnosAuth.authFetch(`${API_BASE}/diagnoses`),
+      DiagnosAuth.authFetch(`${API_BASE}/symptom-sessions`),
+      DiagnosAuth.authFetch(`${API_BASE}/bookings`),
+    ]);
+
+    const diagnoses = diagRes.ok ? await diagRes.json() : [];
+    const sessions = sessionRes.ok ? await sessionRes.json() : [];
+    const bookings = bookingRes.ok ? await bookingRes.json() : [];
+
+    // ── Diagnoses + Symptom Sessions ──
+    const combined = [];
+    diagnoses.forEach(d => {
+      const meta = APPLIANCE_META[d.appliance_type] || { icon: '🔧', name: d.appliance_type };
+      combined.push({
+        icon: meta.icon, name: meta.name,
+        result: d.primary_fault ? d.primary_fault.fault_name : 'No fault identified',
+        confidence: d.primary_fault ? d.primary_fault.confidence.toFixed(0) + '%' : '—',
+        date: d.created_at,
+        status: d.status,
+      });
+    });
+    sessions.forEach(s => {
+      const meta = APPLIANCE_META[s.appliance_type] || { icon: '🔧', name: s.appliance_type };
+      combined.push({
+        icon: meta.icon, name: meta.name,
+        result: (s.status === 'completed' && s.result?.length) ? s.result[0].fault_name : 'In progress',
+        confidence: (s.status === 'completed' && s.result?.length) ? s.result[0].confidence + '%' : '—',
+        date: s.updated_at,
+        status: s.status === 'completed' ? 'done' : 'pending',
+      });
+    });
+    combined.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (combined.length === 0) {
+      diagnosisRows.innerHTML = '<div class="history-row"><span class="empty-state">No diagnoses yet. Run your first diagnosis to see history here.</span></div>';
+    } else {
+      diagnosisRows.innerHTML = '';
+      combined.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'history-row';
+        row.innerHTML = `
+          <span class="hist-appliance">${item.icon} ${escapeHtml(item.name)}</span>
+          <span class="hist-fault">${escapeHtml(item.result)}</span>
+          <span class="hist-conf">${escapeHtml(item.confidence)}</span>
+          <span class="hist-date">${formatDate(item.date)}</span>
+          <span class="hist-status ${statusClass(item.status)}">${item.status.toUpperCase()}</span>
+        `;
+        diagnosisRows.appendChild(row);
+      });
+    }
+
+    // ── Bookings ──
+    if (bookings.length === 0) {
+      bookingRows.innerHTML = '<div class="booking-row"><span class="empty-state">No bookings yet. Book a technician after running a diagnosis.</span></div>';
+    } else {
+      bookingRows.innerHTML = '';
+      bookings.forEach(b => {
+        const row = document.createElement('div');
+        row.className = 'booking-row';
+        row.innerHTML = `
+          <span style="font-weight:600;">${escapeHtml(b.technician_name || '—')}</span>
+          <span>${escapeHtml(b.fault_name || '—')}</span>
+          <span>${escapeHtml(b.appliance_name || b.appliance_type || '—')}</span>
+          <span class="hist-date">${escapeHtml(b.scheduled_slot || '—')}</span>
+          <span class="hist-conf">₹${b.price || 0}</span>
+          <span class="hist-status ${statusClass(b.status)}">${(b.status || 'pending').toUpperCase()}</span>
+        `;
+        bookingRows.appendChild(row);
+      });
+    }
+
+  } catch (err) {
+    diagnosisRows.innerHTML = `<div class="history-row"><span style="color:var(--red);">${escapeHtml(err.message)}</span></div>`;
+    bookingRows.innerHTML = `<div class="booking-row"><span style="color:var(--red);">${escapeHtml(err.message)}</span></div>`;
+  }
+}
+
+loadHistory();
+</script>
+
+</body>
+</html>
