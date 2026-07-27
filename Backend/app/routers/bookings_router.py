@@ -1,6 +1,6 @@
 """
-Booking CRUD — create a booking, list user bookings, get single booking.
-POST /bookings creates a real persisted booking tied to a diagnosis + technician.
+Booking CRUD — create a booking, list user bookings.
+POST /bookings creates a persisted booking with full denormalized details.
 """
 
 from bson import ObjectId
@@ -19,9 +19,16 @@ def _doc_to_public(doc: dict) -> BookingPublic:
         id=str(doc["_id"]),
         diagnosis_id=doc["diagnosis_id"],
         technician_id=doc["technician_id"],
+        technician_name=doc.get("technician_name"),
+        appliance_type=doc.get("appliance_type"),
+        appliance_name=doc.get("appliance_name"),
+        fault_name=doc.get("fault_name"),
+        fault_confidence=doc.get("fault_confidence"),
         scheduled_slot=doc["scheduled_slot"],
         status=doc["status"],
         price=doc.get("price"),
+        cost_min=doc.get("cost_min"),
+        cost_max=doc.get("cost_max"),
         created_at=doc["created_at"],
     )
 
@@ -49,8 +56,36 @@ async def create_booking(
     if not tech:
         raise HTTPException(status_code=404, detail="Technician not found.")
 
+    # Extract details from diagnosis and technician
     price = tech.get("price_per_visit")
-    doc = new_booking_document(user_id=current_user.id, body=body, price=price)
+    fault_name = None
+    fault_confidence = None
+    if diag.get("primary_fault"):
+        fault_name = diag["primary_fault"].get("fault_name")
+        fault_confidence = diag["primary_fault"].get("confidence")
+
+    # Look up appliance name if appliance_id exists
+    appliance_name = diag.get("appliance_type", "").title()
+    if diag.get("appliance_id"):
+        try:
+            appliance_doc = await db.appliances.find_one({"_id": ObjectId(diag["appliance_id"])})
+            if appliance_doc:
+                appliance_name = appliance_doc.get("name", appliance_name)
+        except InvalidId:
+            pass
+
+    doc = new_booking_document(
+        user_id=current_user.id,
+        body=body,
+        price=price,
+        technician_name=tech.get("name"),
+        appliance_type=diag.get("appliance_type"),
+        appliance_name=appliance_name,
+        fault_name=fault_name,
+        fault_confidence=fault_confidence,
+        cost_min=diag.get("cost_min"),
+        cost_max=diag.get("cost_max"),
+    )
     result = await db.bookings.insert_one(doc)
     doc["_id"] = result.inserted_id
 
