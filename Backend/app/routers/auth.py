@@ -6,7 +6,9 @@ Google OAuth sign-in is added in Step 5 as a third endpoint here
 (POST /auth/google) — not built yet.
 """
 
+from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app.models.user import (
@@ -138,3 +140,73 @@ async def google_signin(body: GoogleSignInRequest):
 
     token = create_session_token(user_id=user_id, email=email)
     return AuthResponse(token=token, user=UserPublic(id=user_id, name=name, email=email))
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=72)
+
+
+class UpdateProfileRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=100)
+
+
+@router.put("/me", response_model=UserPublic)
+async def update_profile(
+    body: UpdateProfileRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """Update the current user's name."""
+    db = get_db()
+    await db.users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": {"name": body.name}},
+    )
+    return UserPublic(id=current_user.id, name=body.name, email=current_user.email)
+
+
+@router.post("/change-password")
+async def change_password(
+    body: ChangePasswordRequest,
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """Change password for email/password users. Google-only accounts cannot use this."""
+    db = get_db()
+    user = await db.users.find_one({"_id": ObjectId(current_user.id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    if not user.get("password_hash"):
+        raise HTTPException(
+            status_code=400,
+            detail="This account uses Google sign-in and has no password to change.",
+        )
+
+    if not verify_password(body.current_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+
+    new_hash = hash_password(body.new_password)
+    await db.users.update_one(
+        {"_id": ObjectId(current_user.id)},
+        {"$set": {"password_hash": new_hash}},
+    )
+    return {"message": "Password changed successfully."}
+
+
+@router.delete("/me")
+async def delete_account(
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    """Delete the current user's account and all associated data."""
+    db = get_db()
+    uid = current_user.id
+
+    # Delete user's data across all collections
+    await db.bookings.delete_many({"user_id": uid})
+    await db.diagnoses.delete_many({"user_id": uid})
+    await db.files.delete_many({"user_id": uid})
+    await db.symptom_sessions.delete_many({"user_id": uid})
+    await db.appliances.delete_many({"user_id": uid})
+    await db.users.delete_one({"_id": ObjectId(uid)})
+
+    return {"message": "Account deleted."}
