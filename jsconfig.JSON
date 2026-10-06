@@ -1,0 +1,4 @@
+{
+  "compilerOptions": { "checkJs": false, "maxNodeModuleJsDepth": 0 },
+  "exclude": ["node_modules", "ml", "uploads", ".venv", "venv", "**/__pycache__", "**/*.npy", "**/*.wav"]
+}
