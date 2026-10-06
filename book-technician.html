@@ -249,6 +249,8 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
   .tech-card { flex-direction: column; }
 }
 </style>
+<script>(function(){try{var t=localStorage.getItem('diagnos_theme')||'dark';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','dark')}})();</script>
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 <script src="auth.js"></script>
@@ -294,7 +296,66 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
         </div>
 
         <div class="tech-list" id="techList">
-          <div style="color:var(--muted);font-size:13.5px;padding:20px 0;">Loading technicians...</div>
+
+          <div class="tech-card" data-id="1" data-price="650" data-name="Rakesh Iyer" data-eta="Today, 2:00 PM">
+            <div class="tech-avatar">RI</div>
+            <div class="tech-info">
+              <div class="tech-top">
+                <div class="tech-name">Rakesh Iyer</div>
+                <div class="tech-price mono">₹650 visit</div>
+              </div>
+              <div class="tech-rating"><span class="stars">★★★★★</span> 4.9 · 212 jobs</div>
+              <div class="tech-tags">
+                <span class="tech-tag match">31 compressor jobs</span>
+                <span class="tech-tag">LG certified</span>
+              </div>
+              <div class="tech-meta">
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1.5C3.2 1.5 1.5 3.2 1.5 5.3c0 2.6 4 6.7 4 6.7s4-4.1 4-6.7C9.5 3.2 7.8 1.5 5.5 1.5Z" stroke="currentColor" stroke-width="1.1"/></svg>2.1 km away</span>
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.1"/><path d="M5.5 3V5.5L7 6.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>Available today</span>
+              </div>
+            </div>
+            <div class="tech-radio"><div class="tech-radio-dot"></div></div>
+          </div>
+
+          <div class="tech-card" data-id="2" data-price="500" data-name="Fathima Begum" data-eta="Tomorrow, 11:00 AM">
+            <div class="tech-avatar">FB</div>
+            <div class="tech-info">
+              <div class="tech-top">
+                <div class="tech-name">Fathima Begum</div>
+                <div class="tech-price mono">₹500 visit</div>
+              </div>
+              <div class="tech-rating"><span class="stars">★★★★★</span> 4.8 · 156 jobs</div>
+              <div class="tech-tags">
+                <span class="tech-tag match">18 compressor jobs</span>
+                <span class="tech-tag">All brands</span>
+              </div>
+              <div class="tech-meta">
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1.5C3.2 1.5 1.5 3.2 1.5 5.3c0 2.6 4 6.7 4 6.7s4-4.1 4-6.7C9.5 3.2 7.8 1.5 5.5 1.5Z" stroke="currentColor" stroke-width="1.1"/></svg>3.4 km away</span>
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.1"/><path d="M5.5 3V5.5L7 6.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>Available tomorrow</span>
+              </div>
+            </div>
+            <div class="tech-radio"><div class="tech-radio-dot"></div></div>
+          </div>
+
+          <div class="tech-card" data-id="3" data-price="450" data-name="Suresh Patil" data-eta="Today, 5:30 PM">
+            <div class="tech-avatar">SP</div>
+            <div class="tech-info">
+              <div class="tech-top">
+                <div class="tech-name">Suresh Patil</div>
+                <div class="tech-price mono">₹450 visit</div>
+              </div>
+              <div class="tech-rating"><span class="stars">★★★★☆</span> 4.6 · 89 jobs</div>
+              <div class="tech-tags">
+                <span class="tech-tag">General appliance</span>
+              </div>
+              <div class="tech-meta">
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1.5C3.2 1.5 1.5 3.2 1.5 5.3c0 2.6 4 6.7 4 6.7s4-4.1 4-6.7C9.5 3.2 7.8 1.5 5.5 1.5Z" stroke="currentColor" stroke-width="1.1"/></svg>1.2 km away</span>
+                <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.1"/><path d="M5.5 3V5.5L7 6.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>Available today</span>
+              </div>
+            </div>
+            <div class="tech-radio"><div class="tech-radio-dot"></div></div>
+          </div>
+
         </div>
       </div>
 
@@ -307,11 +368,7 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
         </div>
         <div class="summary-row">
           <span class="k">Likely fault</span>
-          <span class="v" id="summaryFault">—</span>
-        </div>
-        <div class="summary-row">
-          <span class="k">Est. repair cost</span>
-          <span class="v" id="summaryCost">—</span>
+          <span class="v">Compressor Strain</span>
         </div>
         <div class="summary-row">
           <span class="k">Technician</span>
@@ -350,7 +407,7 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
     <div class="confirmed-detail">
       <div class="confirmed-detail-row"><span class="k">Technician</span><span class="v" id="confTechName"></span></div>
       <div class="confirmed-detail-row"><span class="k">Time</span><span class="v" id="confSlot"></span></div>
-      <div class="confirmed-detail-row"><span class="k">Appliance</span><span class="v" id="confAppliance">—</span></div>
+      <div class="confirmed-detail-row"><span class="k">Appliance</span><span class="v">Kitchen Refrigerator</span></div>
       <div class="confirmed-detail-row"><span class="k">Visit charge</span><span class="v" id="confPrice"></span></div>
     </div>
 
@@ -365,46 +422,8 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
 <script>
 'use strict';
 
-const API_BASE = 'http://127.0.0.1:8000';
-
 let selectedTech = null;
 let selectedSlot = null;
-
-// Load diagnosis context from sessionStorage
-let ctx = null;
-try {
-  const stored = sessionStorage.getItem('diagnos_booking_context');
-  if (stored) ctx = JSON.parse(stored);
-} catch(e) {}
-
-// Load context from URL params as fallback
-if (!ctx) {
-  const params = new URLSearchParams(location.search);
-  ctx = {
-    diagnosis_id: params.get('diagnosis_id'),
-    fault_name: params.get('fault'),
-    appliance_name: params.get('appliance') || 'Appliance',
-    confidence: null, cost_min: null, cost_max: null,
-  };
-}
-
-// Fill context strip if we have data
-if (ctx) {
-  const ctxText = document.querySelector('.context-strip .context-text');
-  const ctxConf = document.querySelector('.context-strip .context-conf');
-  if (ctx.fault_name && ctxText) {
-    ctxText.innerHTML = `Diagnosis for your <strong>${ctx.appliance_name || 'appliance'}</strong> — likely cause: <strong>${ctx.fault_name}</strong>`;
-  }
-  if (ctx.confidence && ctxConf) ctxConf.textContent = ctx.confidence.toFixed(0) + '% CONFIDENCE';
-
-  // Fill summary
-  const summaryFault = document.querySelector('.summary-row .v[id="summaryFault"]');
-  if (summaryFault) summaryFault.textContent = ctx.fault_name || '—';
-  if (ctx.cost_min != null && ctx.cost_max != null) {
-    const costEl = document.getElementById('summaryCost');
-    if (costEl) costEl.textContent = '₹' + Number(ctx.cost_min).toLocaleString('en-IN') + '–₹' + Number(ctx.cost_max).toLocaleString('en-IN');
-  }
-}
 
 const techList = document.getElementById('techList');
 const summaryTech = document.getElementById('summaryTech');
@@ -414,6 +433,20 @@ const confirmBtn = document.getElementById('confirmBtn');
 function updateConfirmState() {
   confirmBtn.disabled = !(selectedTech && selectedSlot);
 }
+
+techList.querySelectorAll('.tech-card').forEach(card => {
+  card.addEventListener('click', () => {
+    techList.querySelectorAll('.tech-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedTech = {
+      name: card.dataset.name,
+      price: card.dataset.price
+    };
+    summaryTech.textContent = selectedTech.name;
+    summaryPrice.textContent = '₹' + selectedTech.price;
+    updateConfirmState();
+  });
+});
 
 document.querySelectorAll('.slot-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -428,111 +461,15 @@ document.querySelectorAll('.filter-chip').forEach(chip => {
   chip.addEventListener('click', () => {
     document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
     chip.classList.add('active');
-    const filter = chip.dataset.filter;
-    let filtered = [...allTechnicians];
-    if (filter === 'match' && ctx?.fault_name) {
-      filtered = filtered.filter(t => t.specialties.includes(ctx.fault_name));
-    } else if (filter === 'rated') {
-      filtered.sort((a, b) => (b.rating||0) - (a.rating||0));
-    } else if (filter === 'nearby') {
-      filtered.sort((a, b) => (a.price_per_visit||0) - (b.price_per_visit||0));
-    }
-    techList.innerHTML = '';
-    filtered.forEach(t => techList.appendChild(renderTechCard(t)));
+    // Mock filter — in this demo all technicians remain visible regardless of filter.
   });
 });
 
-// Render technician cards from API data
-function renderTechCard(tech) {
-  const initials = tech.name.split(' ').map(w => w[0]).join('').toUpperCase();
-  const fullStars = Math.round(tech.rating || 0);
-  const stars = '★'.repeat(fullStars) + '☆'.repeat(5 - fullStars);
-  const isMatch = ctx && ctx.fault_name && tech.specialties.includes(ctx.fault_name);
-
-  let tagsHtml = '';
-  if (isMatch) tagsHtml += `<span class="tech-tag match">${ctx.fault_name} specialist</span>`;
-  tech.specialties.slice(0, 2).forEach(s => {
-    if (s !== ctx?.fault_name) tagsHtml += `<span class="tech-tag">${s}</span>`;
-  });
-
-  const card = document.createElement('div');
-  card.className = 'tech-card';
-  card.dataset.id = tech.id;
-  card.dataset.name = tech.name;
-  card.dataset.price = tech.price_per_visit || 0;
-  card.innerHTML = `
-    <div class="tech-avatar">${initials}</div>
-    <div class="tech-info">
-      <div class="tech-top">
-        <div class="tech-name">${tech.name}</div>
-        <div class="tech-price mono">₹${tech.price_per_visit || 0} visit</div>
-      </div>
-      <div class="tech-rating"><span class="stars">${stars}</span> ${(tech.rating||0).toFixed(1)} · ${tech.jobs_completed} jobs</div>
-      <div class="tech-tags">${tagsHtml}</div>
-      <div class="tech-meta">
-        <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><path d="M5.5 1.5C3.2 1.5 1.5 3.2 1.5 5.3c0 2.6 4 6.7 4 6.7s4-4.1 4-6.7C9.5 3.2 7.8 1.5 5.5 1.5Z" stroke="currentColor" stroke-width="1.1"/></svg>${tech.service_area || 'Local'}</span>
-        <span><svg width="11" height="11" viewBox="0 0 11 11" fill="none"><circle cx="5.5" cy="5.5" r="4" stroke="currentColor" stroke-width="1.1"/><path d="M5.5 3V5.5L7 6.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>Available today</span>
-      </div>
-    </div>
-    <div class="tech-radio"><div class="tech-radio-dot"></div></div>
-  `;
-
-  card.addEventListener('click', () => {
-    techList.querySelectorAll('.tech-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
-    selectedTech = { id: tech.id, name: tech.name, price: tech.price_per_visit };
-    summaryTech.textContent = tech.name;
-    summaryPrice.textContent = '₹' + (tech.price_per_visit || 0);
-    updateConfirmState();
-  });
-
-  return card;
-}
-
-let allTechnicians = [];
-
-async function loadTechnicians() {
-  try {
-    const faultParam = ctx?.fault_name ? `?fault_name=${encodeURIComponent(ctx.fault_name)}` : '';
-    const res = await DiagnosAuth.authFetch(`${API_BASE}/technicians${faultParam}`);
-    if (!res.ok) throw new Error('Failed');
-    allTechnicians = await res.json();
-    techList.innerHTML = '';
-    allTechnicians.forEach(t => techList.appendChild(renderTechCard(t)));
-  } catch(e) {
-    techList.innerHTML = '<div style="color:var(--red);font-size:13px;padding:16px 0;">Could not load technicians. Please refresh.</div>';
-  }
-}
-
-loadTechnicians();
-
-confirmBtn.addEventListener('click', async () => {
+confirmBtn.addEventListener('click', () => {
   if (!selectedTech || !selectedSlot) return;
-  confirmBtn.disabled = true;
-  confirmBtn.textContent = 'Booking...';
-
-  // Try to create a real booking if we have a diagnosis_id
-  if (ctx?.diagnosis_id && selectedTech.id) {
-    try {
-      await DiagnosAuth.authFetch(`${API_BASE}/bookings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          diagnosis_id: ctx.diagnosis_id,
-          technician_id: selectedTech.id,
-          scheduled_slot: selectedSlot,
-        }),
-      });
-      sessionStorage.removeItem('diagnos_booking_context');
-    } catch(e) {
-      console.warn('Booking API failed, showing confirmation anyway:', e);
-    }
-  }
-
   document.getElementById('confTechName').textContent = selectedTech.name;
   document.getElementById('confSlot').textContent = selectedSlot;
   document.getElementById('confPrice').textContent = '₹' + selectedTech.price;
-  document.getElementById('confAppliance').textContent = ctx?.appliance_name || 'Appliance';
 
   document.getElementById('bookingView').style.display = 'none';
   document.getElementById('confirmedView').classList.add('show');
@@ -540,5 +477,6 @@ confirmBtn.addEventListener('click', async () => {
 });
 </script>
 
+<script src="ui.js"></script>
 </body>
 </html>

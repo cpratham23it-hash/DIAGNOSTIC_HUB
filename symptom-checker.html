@@ -233,6 +233,8 @@ ul, ol { list-style: none; }
   .app-grid { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
+<script>(function(){try{var t=localStorage.getItem('diagnos_theme')||'dark';document.documentElement.setAttribute('data-theme',t)}catch(e){document.documentElement.setAttribute('data-theme','dark')}})();</script>
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 <script src="auth.js"></script>
@@ -555,5 +557,6 @@ document.getElementById('startOverBtn').addEventListener('click', () => {
 })();
 </script>
 
+<script src="ui.js"></script>
 </body>
 </html>
